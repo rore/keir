@@ -1,0 +1,607 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#111B1F">
+<meta name="description" content="Keir: customer-defined behavior, platform-defined authority.">
+<title>Keir · Let AI extend your app. Keep the app in control.</title>
+<style>
+:root{
+  --dark:#111B1F;--dark2:#1A292D;--dark3:#22363A;--cream:#F6F4EE;--white:#FFFEFA;
+  --ink:#121B1F;--muted:#5B6B66;--soft:#8A9893;--line:#D5D9D0;--wash:#EAEDE5;
+  --lime:#D1FF73;--green:#2D675C;--coral:#C9502F;--coral-d:#FF8A6B;--coral-w:#FBE5DC;--host:#DDE7DF;
+  --font:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  --mono:"Cascadia Code",Consolas,"SFMono-Regular",Menlo,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#0A1214;font-family:var(--font);-webkit-font-smoothing:antialiased}
+h1,h2,h3,p,blockquote{margin:0}
+#stage{position:absolute;left:0;top:0;width:1600px;height:900px;transform-origin:top left;overflow:hidden;background:var(--cream)}
+.slide{position:absolute;inset:0;display:none;background:var(--cream);color:var(--ink);overflow:hidden}
+.slide.active{display:block}
+.slide.dark{background:var(--dark);color:#F3F4EE}
+
+.brand{position:absolute;left:96px;top:56px;display:flex;align-items:center;gap:12px;font-size:26px;font-weight:750;letter-spacing:-.04em}
+.mark{width:26px;height:26px;border:3px solid var(--green);border-radius:8px;display:grid;place-items:center}
+.mark:after{content:"";width:7px;height:7px;border-radius:50%;background:var(--green)}
+.dark .mark{border-color:var(--lime)}.dark .mark:after{background:var(--lime)}
+.meta{position:absolute;right:96px;top:64px;font-size:14px;font-weight:700;letter-spacing:.14em;color:var(--soft)}
+.num{position:absolute;right:96px;bottom:44px;font-size:15px;font-weight:600;letter-spacing:.06em;color:var(--soft);font-variant-numeric:tabular-nums}
+.foot{position:absolute;left:96px;bottom:44px;font-size:15px;color:var(--soft)}
+
+.body{position:absolute;left:96px;right:96px;top:140px;bottom:92px;display:flex;flex-direction:column}
+.t{font-size:62px;line-height:1.07;font-weight:750;letter-spacing:-.035em}
+.sub{font-size:25px;line-height:1.35;color:var(--muted);margin-top:16px;max-width:1150px}
+.dark .sub{color:#B7C6BF}
+.scene{flex:1;margin-top:44px;position:relative;min-height:0}
+.label{font-size:14px;font-weight:750;letter-spacing:.13em;text-transform:uppercase;color:var(--muted)}
+.dark .label{color:#A7B9B1}
+.g{color:var(--green)}.dark .g,.l{color:var(--lime)}
+.c{color:var(--coral)}.dark .c{color:var(--coral-d)}
+.code{font-family:var(--mono);letter-spacing:-.02em}
+.callout{border-left:5px solid var(--green);padding-left:22px;font-size:27px;font-weight:650;letter-spacing:-.02em;line-height:1.3}
+.dark .callout{border-color:var(--lime)}
+
+/* 01 cover */
+.cover-hero{position:absolute;left:96px;top:200px;font-size:92px;line-height:1.02;font-weight:780;letter-spacing:-.045em}
+.cover-intro{position:absolute;left:100px;top:640px;width:800px;font-size:25px;line-height:1.45;color:#BFCAC2}
+.cover-art{position:absolute;left:968px;top:170px;width:580px;height:560px}
+
+/* 02 ask */
+.ask{display:grid;grid-template-columns:600px 1fr;gap:72px;height:100%}
+.ask-quote{background:var(--white);border-left:7px solid var(--coral);padding:40px 44px;display:flex;flex-direction:column}
+.ask-quote blockquote{font-size:38px;line-height:1.2;font-weight:680;letter-spacing:-.035em;margin-top:26px}
+.ask-quote .note{margin-top:auto;font-size:19px;color:var(--muted)}
+.studio{background:#fff;border:1px solid #CCD5CE;border-radius:14px;box-shadow:0 18px 60px #12241f17;overflow:hidden;display:flex;flex-direction:column}
+.studio-head{height:58px;border-bottom:1px solid #E5E9E2;padding:0 24px;display:flex;align-items:center;justify-content:space-between;font:700 14px var(--mono)}
+.studio-head i{display:inline-block;width:9px;height:9px;border-radius:50%;background:#D3D9D4;margin-left:6px}
+.studio-body{padding:20px 24px;flex:1}
+.who{font:700 12px var(--mono);letter-spacing:.09em;color:#768680;margin-bottom:7px}
+.msg{border-radius:9px;padding:13px 18px;font-size:18px;line-height:1.35}
+.msg.ai{background:#E8F2EA;max-width:92%;margin-bottom:14px}
+.msg.me{background:#EEF0EA;max-width:80%;margin:0 0 16px auto}
+.plan{border-top:1px solid #E1E6DF;padding-top:14px}
+.plan-row{display:flex;gap:12px;align-items:center;font-size:18px;font-weight:620;margin:9px 0}
+.plan-row b{width:24px;height:24px;border-radius:50%;background:var(--host);color:var(--green);font:800 12px var(--mono);display:grid;place-items:center}
+.plan-row.rule b{background:var(--coral-w);color:var(--coral)}
+.studio-foot{border-top:1px solid #E3E8E1;padding:15px 24px;display:flex;justify-content:space-between;font:700 13px var(--mono);color:var(--muted)}
+.studio-foot strong{color:var(--green)}
+
+/* 03 gap */
+.gap{display:grid;grid-template-columns:1fr 150px 1fr;height:370px;border-top:2px solid var(--ink)}
+.gap-side{background:var(--wash);padding:30px 34px}
+.gap-side.r{background:#E2E8E5}
+.gap-side h3{font-size:40px;letter-spacing:-.035em;margin:16px 0 12px}
+.gap-side p{font-size:22px;line-height:1.35;color:var(--muted);max-width:540px}
+.gap-mid{background:var(--lime);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
+.gap-mid strong{font-size:60px;line-height:1}
+.gap-mid span{writing-mode:vertical-rl;transform:rotate(180deg);font:800 13px var(--mono);letter-spacing:.16em}
+.toggles{display:flex;gap:16px;margin-top:30px}
+.tg{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #CAD3CD;border-radius:8px;padding:9px 13px;font:600 14px var(--mono)}
+.tg i{width:36px;height:20px;border-radius:20px;background:#C9D4CC;position:relative}
+.tg i:after{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:#fff}
+.tg i.on{background:var(--green)}.tg i.on:after{left:19px}
+.chip{display:inline-block;margin-top:30px;background:#fff;border:1px solid #CAD3CD;border-radius:8px;padding:11px 14px;font:600 15px var(--mono)}
+.gap-line{margin-top:36px}
+
+/* 04 risks */
+.risks{display:grid;grid-template-columns:repeat(3,1fr);gap:56px}
+.risk{border-top:2px solid #45605A;padding-top:24px}
+.risk .n{font:800 15px var(--mono);color:var(--lime)}
+.risk strong{display:block;font-size:38px;letter-spacing:-.03em;margin-top:16px}
+.risk p{font-size:23px;line-height:1.35;color:#BFD0C8;margin-top:12px;max-width:400px}
+.sandbox{margin-top:84px;background:var(--dark2);border-radius:12px;padding:26px 32px;display:flex;gap:26px;align-items:center}
+.sandbox .label{white-space:nowrap}
+.sandbox p{font-size:26px;line-height:1.3;font-weight:600;letter-spacing:-.015em}
+
+/* 05 model */
+.model{display:grid;grid-template-columns:380px 100px 590px 80px 1fr;height:440px;align-items:center}
+.inputs{display:flex;flex-direction:column;gap:30px}
+.in-block .label{display:flex;align-items:center;gap:10px}
+.dot{width:12px;height:12px;border-radius:3px;display:inline-block}
+.dot.cust{background:var(--coral)}.dot.host{background:var(--green)}
+.in-quote{font-size:23px;line-height:1.3;font-weight:680;letter-spacing:-.02em;margin-top:12px}
+.pills{display:flex;flex-wrap:wrap;gap:9px;margin-top:14px}
+.pill{font:650 16px var(--mono);background:var(--host);color:#1F4A41;border-radius:30px;padding:9px 15px}
+.pill.hook{background:transparent;border:1.5px dashed var(--green)}
+.in-note{font-size:17px;color:var(--muted);margin-top:10px}
+.merge{position:relative;height:100%}
+.merge svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.merge span{position:absolute;left:8px;right:0;top:50%;transform:translateY(-50%);text-align:center;font:800 12px var(--mono);letter-spacing:.12em;color:var(--muted);background:var(--cream);padding:4px 0}
+.keir-box{background:var(--dark);color:#F3F4EE;border-radius:22px;padding:26px 34px;position:relative;box-shadow:inset 0 0 0 3px var(--lime)}
+.kb-head{display:flex;justify-content:space-between;align-items:center;padding-bottom:14px;border-bottom:1px solid #3A5150}
+.kb-head b{font-size:16px;letter-spacing:.18em;color:var(--lime)}
+.kb-head span{font-size:15px;color:#A9BCAD}
+.line{display:grid;grid-template-columns:76px 1fr;align-items:center;height:44px;padding-left:16px;margin-top:7px;background:#18282B;border-radius:8px}
+.line .k{font:800 13px var(--mono);letter-spacing:.08em;color:#8CA79C}
+.line .v{font:600 19px var(--mono);letter-spacing:-.03em;color:var(--coral-d)}
+.op{color:#7FD3AE}
+.dot.op-d{background:#7FD3AE}.dot.wire-d{background:var(--coral-d)}
+.kb-foot{display:flex;align-items:center;gap:12px;margin-top:18px;padding-top:14px;border-top:1px solid #3A5150;font-size:19px;font-weight:650}
+.tick{width:26px;height:26px;border-radius:50%;background:var(--lime);display:grid;place-items:center;color:var(--dark);font-weight:900;font-size:15px}
+.exec-arrow{height:3px;background:var(--green);position:relative;margin:0 10px}
+.exec-arrow:after{content:"";position:absolute;right:-2px;top:-7px;border-left:12px solid var(--green);border-top:8.5px solid transparent;border-bottom:8.5px solid transparent}
+.exec .bell{width:54px;height:54px;border-radius:50%;background:var(--host);display:grid;place-items:center;margin:16px 0 14px}
+.exec strong{display:block;font-size:30px;letter-spacing:-.025em;line-height:1.1}
+.exec p{font-size:18px;color:var(--muted);line-height:1.35;margin-top:10px}
+.model-foot{display:flex;justify-content:space-between;align-items:center;margin-top:20px;padding-top:18px;border-top:1px solid var(--line)}
+.legend{display:flex;gap:26px;font-size:17px;color:var(--muted)}
+.legend span{display:flex;align-items:center;gap:9px}
+
+/* 06 answers */
+.answers{border-top:2px solid var(--ink)}
+.ans{display:grid;grid-template-columns:310px 70px 1fr;align-items:center;min-height:104px;border-bottom:1px solid var(--line)}
+.ans .risk-name{font-size:28px;font-weight:700;letter-spacing:-.02em;display:flex;gap:16px;align-items:baseline}
+.ans .risk-name i{font:800 14px var(--mono);font-style:normal;color:var(--coral)}
+.ans .to{font-size:28px;color:var(--soft)}
+.ans strong{font-size:27px;letter-spacing:-.02em}
+.ans p{font-size:20px;color:var(--muted);margin-top:4px}
+.cannot{display:flex;gap:18px;align-items:center;margin-top:30px;flex-wrap:wrap}
+.cannot .label{margin-right:8px}
+.no{font-size:19px;font-weight:600;background:var(--wash);border-radius:30px;padding:10px 18px}
+.no:before{content:"✕";color:var(--coral);font-weight:900;margin-right:10px}
+
+/* 07 simulate */
+.sim{display:grid;grid-template-columns:560px 1fr;gap:70px;height:100%}
+.sim-copy p{font-size:24px;line-height:1.42;color:var(--muted)}
+.sim-copy .steps{margin-top:26px;border-top:1px solid var(--line)}
+.sim-copy .steps div{display:flex;gap:16px;padding:14px 0;border-bottom:1px solid var(--line);font-size:21px;font-weight:600}
+.sim-copy .steps b{font:800 14px var(--mono);color:var(--green);padding-top:4px}
+.sim-card{background:#fff;border:1px solid #CBD5CD;border-radius:14px;box-shadow:0 18px 60px #12241f17;overflow:hidden;align-self:start}
+.sim-top{padding:18px 24px;border-bottom:1px solid #E1E7E0;display:flex;justify-content:space-between;font:700 14px var(--mono)}
+.sim-top span:last-child{color:var(--green)}
+.sc{display:grid;grid-template-columns:38px 1fr 230px 60px;gap:12px;align-items:center;padding:17px 24px;border-bottom:1px solid #E7ECE6}
+.sc .ok{width:28px;height:28px;border-radius:50%;background:#E3F2E7;color:var(--green);display:grid;place-items:center;font-weight:900}
+.sc .ok.q{background:var(--coral-w);color:var(--coral)}
+.sc strong{font-size:19px}
+.sc small{display:block;font-size:15px;color:var(--muted);margin-top:3px}
+.sc .exp{font-size:17px;font-weight:650}
+.sc .exp.yes{color:var(--coral)}
+.sc .pass{font:800 12px var(--mono);color:var(--green);text-align:right}
+.sim-bottom{padding:18px 24px;display:flex;justify-content:space-between;align-items:center;background:#F4F6F1;font:700 13px var(--mono);color:var(--muted)}
+.approve{background:var(--dark);color:#fff;border-radius:6px;padding:12px 18px}
+.caveat{position:absolute;left:0;bottom:0;font-size:18px;color:var(--soft)}
+
+/* 08 section */
+.sec-label{position:absolute;left:100px;top:230px;font-size:17px;font-weight:750;letter-spacing:.16em;color:var(--lime)}
+.sec-hero{position:absolute;left:96px;top:280px;font-size:104px;line-height:1.04;font-weight:780;letter-spacing:-.045em}
+.sec-lede{position:absolute;left:100px;top:560px;width:900px;font-size:29px;line-height:1.4;color:#B7C6BF}
+.sec-art{position:absolute;right:150px;top:470px;width:250px;height:200px;border:2px solid #3E5550;border-radius:26px;transform:rotate(-7deg)}
+.sec-art:after{content:"";position:absolute;inset:38px;border:3px solid var(--lime);border-radius:14px}
+
+/* 09 vocabulary */
+.vocab{display:grid;grid-template-columns:repeat(3,1fr);gap:48px}
+.voc{border-top:2px solid var(--ink);padding-top:22px}
+.voc .label{color:var(--green)}
+.voc h3{font-size:38px;letter-spacing:-.03em;margin-top:14px}
+.voc p{font-size:22px;line-height:1.35;color:var(--muted);margin-top:12px;min-height:60px}
+.voc .ex{font:600 19px var(--mono);background:var(--host);border-radius:8px;padding:14px 16px;margin-top:22px;line-height:1.5;color:#1F4A41}
+.vocab-foot{position:absolute;left:0;bottom:0}
+
+/* 10 program */
+.prog{display:grid;grid-template-columns:820px 1fr;gap:64px;height:100%}
+.codebox{background:var(--dark);color:#EAF0EA;border-radius:14px;padding:26px 32px 30px;align-self:start}
+.codebox .cap{display:flex;justify-content:space-between;font-size:14px;font-weight:750;letter-spacing:.12em;color:var(--lime)}
+.codebox .cap span:last-child{color:#9DB0A8;letter-spacing:0;font-weight:500}
+.codebox pre{margin:20px 0 0;font:21px/1.5 var(--mono);letter-spacing:-.02em;white-space:pre}
+.codebox .k{color:#8FB8A8}.codebox .id{color:#F3F4EE;font-weight:700}
+.codebox pre{font-size:20px}
+.codebox .w{color:var(--coral-d)}
+.codebox .op{color:#7FD3AE;font-weight:700}
+.code-legend{display:flex;gap:24px;margin-top:18px;padding-top:14px;border-top:1px solid #34494C;font-size:15px;color:#A7B9B1}
+.code-legend span{display:flex;align-items:center;gap:8px}
+.rules .r{padding:18px 0;border-bottom:1px solid var(--line)}
+.rules .r:first-child{border-top:2px solid var(--ink)}
+.rules .r strong{font-size:26px;letter-spacing:-.02em;display:flex;gap:14px;align-items:baseline}
+.rules .r strong i{font:800 14px var(--mono);font-style:normal;color:var(--green)}
+.rules .r p{font-size:20px;line-height:1.35;color:var(--muted);margin-top:8px}
+
+/* 11 compiler */
+.comp{position:relative;height:100%}
+.doc{position:absolute;top:70px;width:250px;text-align:center}
+.doc .ic{width:110px;height:140px;margin:0 auto;border:2px solid #A4B4AA;border-radius:9px;background:#fff;position:relative}
+.doc .ic:before{content:"";position:absolute;left:20px;right:20px;top:36px;height:3px;background:#B9C8BE;box-shadow:0 22px 0 #B9C8BE,0 44px 0 #B9C8BE}
+.doc .ic.ok{border-color:var(--ink);background:var(--host)}
+.doc .ic.ok:before{display:none}
+.doc .ic.ok:after{content:"✓";position:absolute;inset:0;display:grid;place-items:center;font-size:54px;font-weight:800;color:var(--green)}
+.doc h3{font-size:24px;margin-top:18px}
+.doc .label{margin-top:6px}
+.gate{position:absolute;left:390px;top:0;width:620px;height:330px;background:var(--dark);color:#F3F4EE;border-radius:20px;padding:28px 40px;box-shadow:inset 0 0 0 3px var(--lime)}
+.gate .label{color:var(--lime)}
+.gate h3{font-size:34px;letter-spacing:-.025em;margin:10px 0 16px}
+.gate .chk{display:flex;gap:14px;align-items:center;font-size:23px;padding:13px 0;border-top:1px solid #3A5150}
+.gate .chk:before{content:"✓";color:var(--lime);font-weight:900}
+.wire{position:absolute;top:140px;height:3px;background:#9EAFA5}
+.wire:after{content:"";position:absolute;right:-2px;top:-7px;border-left:12px solid #9EAFA5;border-top:8.5px solid transparent;border-bottom:8.5px solid transparent}
+.reject{position:absolute;left:440px;top:330px;display:flex;align-items:flex-end;gap:16px}
+.reject .stem{width:3px;height:56px;background:var(--coral)}
+.reject div{font-size:21px;color:var(--muted);padding-bottom:0;line-height:1.3}
+.reject b{color:var(--coral)}
+
+/* 12 runtime */
+.hostbox{position:absolute;left:0;right:0;top:14px;height:430px;border:2px solid #A5BAB0;border-radius:18px;background:var(--white);padding:46px 40px 0}
+.hostbox .tag{position:absolute;top:-14px;left:34px;background:var(--cream);padding:0 14px;font-size:15px;font-weight:750;letter-spacing:.13em;color:var(--green)}
+.rail{display:flex;gap:22px;font-size:20px;color:var(--muted);padding-bottom:22px;border-bottom:1px solid var(--line)}
+.track{display:grid;grid-template-columns:1fr 56px 1fr 56px 1fr 56px 1fr;align-items:center;margin-top:32px}
+.node{height:178px;background:var(--wash);border-radius:10px;padding:20px 22px}
+.node .label{font-size:13px}
+.node h3{font-size:28px;letter-spacing:-.025em;margin-top:16px;line-height:1.12}
+.node .code{font-size:20px}
+.node p{font-size:17px;color:var(--muted);margin-top:8px;line-height:1.3}
+.node.k{background:var(--dark);color:#F3F4EE;box-shadow:inset 0 0 0 3px var(--lime)}
+.node.k .label{color:var(--lime)}.node.k p{color:#B5C6BE}
+.arw{height:3px;background:#9EAFA5;margin:0 10px;position:relative}
+.arw:after{content:"";position:absolute;right:-2px;top:-7px;border-left:12px solid #9EAFA5;border-top:8.5px solid transparent;border-bottom:8.5px solid transparent}
+.host-out{position:absolute;left:40px;right:40px;bottom:26px;padding-top:20px;border-top:1px solid var(--line);font-size:21px;display:flex;gap:20px;align-items:baseline}
+.host-out strong{white-space:nowrap}
+.host-out span{color:var(--muted)}
+
+/* 13 close */
+.fin-hero{position:absolute;left:96px;top:190px;font-size:92px;line-height:1.08;font-weight:780;letter-spacing:-.045em}
+.fin-ask{position:absolute;left:96px;right:96px;top:520px;display:grid;grid-template-columns:repeat(3,1fr);gap:48px}
+.fin-ask div{border-top:2px solid #45605A;padding-top:20px}
+.fin-ask b{font:800 14px var(--mono);color:var(--lime);letter-spacing:.1em}
+.fin-ask strong{display:block;font-size:30px;letter-spacing:-.025em;margin-top:12px}
+.fin-ask p{font-size:20px;color:#B7C6BF;margin-top:10px;line-height:1.4}
+.fin-note{position:absolute;left:96px;bottom:44px;font-size:17px;color:#8FA59D}
+
+/* controls */
+#controls{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:20;display:flex;gap:4px;padding:4px;border-radius:30px;background:#111B1FCC;border:1px solid #3A4F4B;backdrop-filter:blur(6px);opacity:.75;transition:opacity .15s}
+#controls:hover,#controls:focus-within{opacity:1}
+#controls button{width:32px;height:32px;padding:0;border-radius:50%;border:0;background:transparent;color:#EEF2EE;font-size:18px;line-height:1;cursor:pointer;display:grid;place-items:center}
+#controls svg{width:15px;height:15px;display:block}
+#controls button:hover{background:#2A3D3A}
+#count{align-self:center;min-width:52px;text-align:center;font:600 13px var(--mono);color:#C9D6D0}
+#controls button:focus-visible{outline:3px solid var(--lime);outline-offset:2px}
+#controls button:disabled{opacity:.3;cursor:default}
+#overview{position:fixed;inset:0;z-index:30;display:none;overflow:auto;background:#0B1416F2;padding:56px max(32px,calc((100vw - 1280px)/2))}
+#overview.open{display:block}
+#overview h2{color:#F3F4EE;font-size:30px;margin-bottom:24px}
+#ov-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
+.ov{min-height:120px;text-align:left;cursor:pointer;background:#1A292D;color:#EEF2EE;border:2px solid #34494C;border-radius:8px;padding:18px;font-family:var(--font);display:flex;flex-direction:column;gap:10px}
+.ov small{font:700 13px var(--mono);color:var(--lime)}
+.ov strong{font-size:20px;line-height:1.2}
+.ov.current,.ov:hover,.ov:focus-visible{border-color:var(--lime);outline:none}
+#live{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+@media (prefers-reduced-motion:reduce){#controls{transition:none}}
+#rotate{display:none;position:fixed;left:0;right:0;bottom:64px;text-align:center;font:500 14px var(--font);color:#A7B9B1}
+@media (orientation:portrait) and (max-width:820px){#rotate{display:block}}
+@media screen{.num{display:none}}
+@media print{html,body{height:auto;overflow:visible}#stage{position:static;transform:none!important}.slide{position:relative;display:block!important;width:1600px;height:900px;break-after:page;-webkit-print-color-adjust:exact;print-color-adjust:exact}#controls,#overview{display:none!important}@page{size:1600px 900px;margin:0}}
+</style>
+</head>
+<body>
+<main id="stage" aria-label="Keir presentation">
+
+<!-- 01 COVER -->
+<section class="slide dark active" data-title="Let AI extend your app. Keep the app in control.">
+ <div class="brand"><span class="mark"></span>keir</div>
+ <div class="meta">CONTROLLED, AI-BUILT CUSTOMIZATION</div>
+ <h1 class="cover-hero">Let AI extend<br>your app.<br><span class="l">Keep the app<br>in control.</span></h1>
+ <p class="cover-intro">Keir is an embeddable framework: a constrained language, a compiler and a runtime. Business users describe new behavior; AI builds it in Keir from the operations the app exposes. No arbitrary code inside your app.</p>
+ <svg class="cover-art" viewBox="0 0 580 560" role="img" aria-label="A new behavior composed from the app's approved operations inside its boundary; an unapproved call is blocked at the edge">
+  <defs><radialGradient id="glow"><stop stop-color="#D1FF73" stop-opacity=".14"/><stop offset="1" stop-color="#D1FF73" stop-opacity="0"/></radialGradient></defs>
+  <circle cx="230" cy="280" r="280" fill="url(#glow)"/>
+  <rect x="20" y="40" width="420" height="480" rx="36" fill="#17262A" stroke="#D1FF73" stroke-width="3.5"/>
+  <text x="54" y="84" fill="#AFC4B4" font-family="Segoe UI,Arial,sans-serif" font-size="15" font-weight="700" letter-spacing="2.2">BUILT FROM THE APP'S OPERATIONS</text>
+  <g stroke="#D1FF73" stroke-width="3" fill="none"><path d="M230 148V162M230 206V220M230 264V278M230 322V336M230 380V394"/></g>
+  <g font-family="Cascadia Code,Consolas,monospace" font-size="18" font-weight="600">
+   <g fill="#1F3337" stroke="#3E5A57" stroke-width="1.5"><rect x="54" y="104" width="352" height="44" rx="12"/><rect x="54" y="162" width="352" height="44" rx="12"/><rect x="54" y="220" width="352" height="44" rx="12"/><rect x="54" y="278" width="352" height="44" rx="12"/><rect x="54" y="336" width="352" height="44" rx="12"/><rect x="54" y="394" width="352" height="44" rx="12"/></g>
+   <g fill="#8CA79C" font-size="12" font-weight="800" letter-spacing="1.4"><text x="74" y="131">WHEN</text><text x="74" y="189">READ</text><text x="74" y="247">READ</text><text x="74" y="305">IF</text><text x="74" y="363">WRITE</text><text x="74" y="421">WRITE</text></g>
+   <g fill="#7FD3AE"><text x="142" y="132">OrderConfirmed</text><text x="142" y="190">orders.get</text><text x="142" y="248">customers.get</text><text x="142" y="364">orders.hold</text><text x="142" y="422">tasks.create</text></g>
+   <text x="142" y="306" fill="#F3F4EE">total &gt; creditLimit</text>
+  </g>
+  <path d="M406 416H502" stroke="#6E7F7A" stroke-width="2" stroke-dasharray="5 6"/>
+  <circle cx="440" cy="416" r="14" fill="#111B1F" stroke="#E2614B" stroke-width="2.5"/>
+  <path d="M434 410l12 12M446 410l-12 12" stroke="#E2614B" stroke-width="2.5" stroke-linecap="round"/>
+  <rect x="470" y="392" width="104" height="48" rx="12" fill="none" stroke="#56686A" stroke-width="1.5" stroke-dasharray="4 5"/>
+  <text x="522" y="422" text-anchor="middle" fill="#7D8E8A" font-family="Cascadia Code,Consolas,monospace" font-size="15">http.post</text>
+  <text x="522" y="466" text-anchor="middle" fill="#7D8E8A" font-family="Segoe UI,Arial,sans-serif" font-size="14">not approved</text>
+  <text x="54" y="488" fill="#D1FF73" font-family="Segoe UI,Arial,sans-serif" font-size="15" font-weight="700" letter-spacing="2">COMPOSE FREELY · WITHIN LIMITS</text>
+ </svg>
+ <div class="num">01 / 13</div>
+</section>
+
+<!-- 02 THE ASK -->
+<section class="slide" data-title="AI can turn a business request into logic.">
+ <div class="brand"><span class="mark"></span>keir</div><div class="meta">THE OPPORTUNITY</div>
+ <div class="body">
+  <h2 class="t">AI can turn a business request into logic.</h2>
+  <p class="sub">Writing the logic is no longer the hard part. Trusting it is.</p>
+  <div class="scene"><div class="ask">
+   <div class="ask-quote"><div class="label">A sales-ops manager asks</div>
+    <blockquote>“When a confirmed order goes over the customer's credit limit, put it on hold and open a review task for their account owner.”</blockquote>
+    <p class="note">Illustrative example: an order-management app. No setting does this, but every piece it needs already exists in the app.</p></div>
+   <div class="studio">
+    <div class="studio-head"><span>ORDERS APP · CUSTOMIZE <span style="color:#8A9893;font-weight:500">/ built on Keir</span></span><span><i></i><i></i><i></i></span></div>
+    <div class="studio-body">
+     <div class="who">AI ASSISTANT</div><div class="msg ai">Should finance be notified too?</div>
+     <div class="who" style="text-align:right">YOU</div><div class="msg me">No. Just the account owner.</div>
+     <div class="plan"><div class="who">PROPOSED EXTENSION · ON OrderConfirmed</div>
+      <div class="plan-row"><b>1</b>Read the order</div>
+      <div class="plan-row"><b>2</b>Read the customer and their credit limit</div>
+      <div class="plan-row"><b>3</b>Compare the order total to the limit</div>
+      <div class="plan-row"><b>4</b>Put the order on hold</div>
+      <div class="plan-row"><b>5</b>Open a review task for the account owner</div></div>
+    </div>
+    <div class="studio-foot"><span>4 APP OPERATIONS · 2 WRITES</span><strong>READY TO SIMULATE ↗</strong></div>
+   </div>
+  </div></div>
+ </div>
+ <div class="num">02 / 13</div>
+</section>
+
+<!-- 03 THE GAP -->
+<section class="slide" data-title="Customization today has two unsatisfying extremes.">
+ <div class="brand"><span class="mark"></span>keir</div><div class="meta">THE PROBLEM</div>
+ <div class="body">
+  <h2 class="t">Customization has two unsatisfying extremes.</h2>
+  <div class="scene">
+   <div class="gap">
+    <div class="gap-side"><div class="label">A · Configuration</div><h3>Safe, but fixed.</h3><p>Users can only change the options the vendor already anticipated.</p>
+     <div class="toggles"><div class="tg"><i class="on"></i>credit check</div><div class="tg"><i></i>auto-hold</div><div class="tg"><i class="on"></i>tasks</div></div></div>
+    <div class="gap-mid"><strong>?</strong><span>THE MISSING MIDDLE</span></div>
+    <div class="gap-side r"><div class="label">B · Code &amp; builders</div><h3>Flexible, but technical.</h3><p>Scripts, external services on APIs and events, even drag-and-drop builders. They need a developer, and someone has to secure and maintain the result.</p>
+     <div class="chip">function onOrder(order) { … }</div></div>
+   </div>
+   <p class="callout gap-line">What's missing: <span class="g">new behavior from the app's own building blocks, defined by the people who know the business.</span></p>
+  </div>
+ </div>
+ <div class="num">03 / 13</div>
+</section>
+
+<!-- 04 WHY NOT CODE -->
+<section class="slide dark" data-title="Generated code is easy to write. Hard to operate.">
+ <div class="brand"><span class="mark"></span>keir</div><div class="meta">WHY NOT JUST GENERATE CODE?</div>
+ <div class="body">
+  <h2 class="t">Generated code is easy to write.<br><span class="l">Hard to operate.</span></h2>
+  <div class="scene">
+   <div class="risks">
+    <div class="risk"><span class="n">01</span><strong>Access</strong><p>Can a customer's program reach data or operations it shouldn't?</p></div>
+    <div class="risk"><span class="n">02</span><strong>Resources</strong><p>Can one customer's logic slow down everyone else?</p></div>
+    <div class="risk"><span class="n">03</span><strong>Upgrades</strong><p>Who keeps generated code working when the app changes?</p></div>
+   </div>
+   <div class="sandbox"><span class="label">And sandboxes?</span><p>They contain arbitrary code. Keir avoids it: <span class="l">a closed language</span> where every operation is declared by the app and checked before it runs.</p></div>
+  </div>
+ </div>
+ <div class="num">04 / 13</div>
+</section>
+
+<!-- 05 THE MODEL -->
+<section class="slide" data-title="Two inputs. One controlled extension.">
+ <div class="brand"><span class="mark"></span>keir</div><div class="meta">THE IDEA</div>
+ <div class="body">
+  <h2 class="t">Two inputs. One controlled extension.</h2>
+  <p class="sub">The app supplies the blocks. The customer says what should happen. AI builds it in Keir.</p>
+  <div class="scene" style="margin-top:26px">
+   <div class="model">
+    <div class="inputs">
+     <div class="in-block"><div class="label"><span class="dot cust"></span>From the customer</div><p class="in-quote">“When a confirmed order goes over the customer's credit limit, put it on hold and open a review task for their account owner.”</p></div>
+     <div class="in-block"><div class="label"><span class="dot host"></span>From the app</div>
+      <div class="pills"><span class="pill hook">OrderConfirmed</span><span class="pill">orders.get</span><span class="pill">customers.get</span><span class="pill">orders.hold</span><span class="pill">tasks.create</span></div>
+      <p class="in-note">Hooks, operations, permissions and limits</p></div>
+    </div>
+    <div class="merge" aria-hidden="true">
+     <svg viewBox="0 0 100 440" preserveAspectRatio="none"><path d="M4 110C55 110 45 220 94 220M4 340C55 340 45 220 94 220" fill="none" stroke="#97A69D" stroke-width="2.2"/><path d="M86 213l9 7-9 7" fill="none" stroke="#97A69D" stroke-width="2.2"/></svg>
+     <span>AI<br>COMPOSES</span>
+    </div>
+    <div class="keir-box">
+     <div class="kb-head"><b>KEIR</b><span>a new composition</span></div>
+     <div class="line"><span class="k">WHEN</span><span class="v"><span class="op">OrderConfirmed</span></span></div>
+     <div class="line"><span class="k">READ</span><span class="v"><span class="op">orders.get</span>(input.orderId)</span></div>
+     <div class="line"><span class="k">READ</span><span class="v"><span class="op">customers.get</span>(order.customerId)</span></div>
+     <div class="line"><span class="k">IF</span><span class="v">order.total &gt; customer.creditLimit</span></div>
+     <div class="line"><span class="k">WRITE</span><span class="v"><span class="op">orders.hold</span>(order.id)</span></div>
+     <div class="line"><span class="k">WRITE</span><span class="v"><span class="op">tasks.create</span>(customer.ownerId)</span></div>
+     <div class="kb-foot"><span class="tick">✓</span>Checked against the app's contract</div>
+    </div>
+    <div class="exec-arrow" aria-hidden="true"></div>
+    <div class="exec"><div class="label">The app executes</div>
+     <div class="bell" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2D675C" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+     <strong>Order held. Review task opened.</strong><p>By the app's own services, under the identity and authorization the app supplies.</p></div>
+   </div>
+   <div class="model-foot">
+    <p class="callout">Every block already existed. <span class="g">The combination is new.</span></p>
+    <div class="legend"><span><i class="dot host"></i>the app's building blocks</span><span><i class="dot cust"></i>the customer's composition</span></div>
+   </div>
+  </div>
+ </div>
+ <div class="num">05 / 13</div>
+</section>
+
+<!-- 06 ANSWERS -->
+<section class="slide" data-title="Each risk gets a structural answer.">
+ <div class="brand"><span class="mark"></span>keir</div><div class="meta">WHY IT'S SAFER</div>
+ <div class="body">
+  <h2 class="t">Each risk gets a structural answer.</h2>
+  <p class="sub">Not a policy the AI is asked to follow. A limit built into what the program can express.</p>
+  <div class="scene">
+   <div class="answers">
+    <div class="ans"><div class="risk-name"><i>01</i>Access</div><div class="to">→</div><div><strong>Known calls only.</strong><p>The program can call only what the app published, under host-supplied identity, scope and authorization.</p></div></div>
+    <div class="ans"><div class="risk-name"><i>02</i>Resources</div><div class="to">→</div><div><strong>Bounded by design.</strong><p>No free-form code or open-ended loops. Every run has a budget and a deadline.</p></div></div>
+    <div class="ans"><div class="risk-name"><i>03</i>Upgrades</div><div class="to">→</div><div><strong>Built on versioned contracts.</strong><p>Extensions depend on the app's published operations, never on its internals.</p></div></div>
+   </div>
+   <div class="cannot"><span class="label">The AI cannot</span><span class="no">run arbitrary code</span><span class="no">call unpublished operations</span><span class="no">grant itself permissions</span></div>
+  </div>
+ </div>
+ <div class="num">06 / 13</div>
+</section>
+
+<!-- 07 SIMULATE -->
+<section class="slide" data-title="Business users can't review code. They can review outcomes.">
+ <div class="brand"><span class="mark"></span>keir</div><div class="meta">THE BUSINESS-USER EXPERIENCE</div>
+ <div class="body">
+  <h2 class="t">Business users can't review code.<br><span class="g">They can review outcomes.</span></h2>
+  <div class="scene"><div class="sim">
+   <div class="sim-copy">
+    <p>Every operation the program can call is known in advance, so the AI can show what it would do, case by case. No logic to read.</p>
+    <div class="steps">
+     <div><b>01</b>Describe it in your own words</div>
+     <div><b>02</b>The AI walks you through what would happen</div>
+     <div><b>03</b>Confirm or correct, then approve</div>
+    </div>
+   </div>
+   <div class="sim-card">
+    <div class="sim-top"><span>SIMULATION · CREDIT-LIMIT HOLD</span><span>3 SCENARIOS</span></div>
+    <div class="sc"><span class="ok">✓</span><div><strong>$12,000 order, $10,000 limit</strong><small>Over the limit</small></div><span class="exp yes">Hold + review task</span><span class="pass">PASS</span></div>
+    <div class="sc"><span class="ok">✓</span><div><strong>$4,000 order, $10,000 limit</strong><small>Within the limit</small></div><span class="exp">No action</span><span class="pass">PASS</span></div>
+    <div class="sc"><span class="ok q">?</span><div><strong>$10,000 order, $10,000 limit</strong><small>AI asked · you said: only above it</small></div><span class="exp">No action</span><span class="pass">PASS</span></div>
+    <div class="sim-bottom"><span>3 / 3 CONFIRMED BY YOU</span><span class="approve">APPROVE &amp; ACTIVATE ↗</span></div>
+   </div>
+  </div>
+  <p class="caveat">Simulation shows what the program will attempt. It doesn't prove how the real services behave.</p>
+  </div>
+ </div>
+ <div class="num">07 / 13</div>
+</section>
+
+<!-- 08 SECTION -->
+<section class="slide dark" data-title="The boundary is compiled, not prompted.">
+ <div class="brand"><span class="mark"></span>keir</div>
+ <div class="sec-label">PART TWO · HOW IT WORKS</div>
+ <h2 class="sec-hero">The boundary is compiled,<br><span class="l">not prompted.</span></h2>
+ <p class="sec-lede">Prompts can only suggest. A constrained language, a compiler and a runner enforce what can actually execute.</p>
+ <div class="sec-art" aria-hidden="true"></div>
+ <div class="num">08 / 13</div>
+</section>
+
+<!-- 09 VOCABULARY -->
+<section class="slide" data-title="The app defines the vocabulary.">
+ <div class="brand"><span class="mark"></span>keir</div><div class="meta">1 · THE CONTRACT</div>
+ <div class="body">
+  <h2 class="t">The app defines the vocabulary.</h2>
+  <p class="sub">Before any AI is involved, the app publishes what extensions may use.</p>
+  <div class="scene">
+   <div class="vocab">
+    <div class="voc"><div class="label">When</div><h3>Hooks</h3><p>Where a program may run, and how the app uses its result.</p><div class="ex">OrderConfirmed</div></div>
+    <div class="voc"><div class="label">What</div><h3>Operations</h3><p>Typed business operations a program may call and combine.</p><div class="ex">orders.get · orders.hold<br>customers.get · tasks.create</div></div>
+    <div class="voc"><div class="label">How far</div><h3>Authority &amp; limits</h3><p>Which identity and scope apply, and how much a run may do.</p><div class="ex">host-supplied identity &amp; scope<br>max 2 writes per run</div></div>
+   </div>
+   <p class="callout vocab-foot">The AI can combine the catalog. <span class="g">It can't add to it.</span></p>
+  </div>
+ </div>
+ <div class="num">09 / 13</div>
+</section>
+
+<!-- 10 PROGRAM -->
+<section class="slide" data-title="The AI writes a constrained program.">
+ <div class="brand"><span class="mark"></span>keir</div><div class="meta">2 · THE LANGUAGE</div>
+ <div class="body">
+  <h2 class="t">The AI composes a constrained program.</h2>
+  <div class="scene"><div class="prog">
+   <div class="codebox"><div class="cap"><span>CONTROLLED EXTENSION IR</span><span>Illustrative, simplified</span></div>
+<pre><span class="k">on:</span> <span class="op">OrderConfirmed</span>
+<span class="k">steps:</span>
+  - <span class="k">id:</span> <span class="id">order</span>
+    <span class="k">call:</span> <span class="op">orders.get</span>(<span class="w">input.orderId</span>)
+  - <span class="k">id:</span> <span class="id">customer</span>
+    <span class="k">call:</span> <span class="op">customers.get</span>(<span class="w">order.customerId</span>)
+  - <span class="k">id:</span> <span class="id">overLimit</span>
+    <span class="k">let:</span> <span class="w">order.total &gt; customer.creditLimit</span>
+  - <span class="k">id:</span> <span class="id">hold</span>
+    <span class="k">call:</span> <span class="op">orders.hold</span>(<span class="w">order.id</span>)
+    <span class="k">when:</span> <span class="w">overLimit</span>
+  - <span class="k">id:</span> <span class="id">review</span>
+    <span class="k">call:</span> <span class="op">tasks.create</span>(<span class="w">customer.ownerId</span>)
+    <span class="k">when:</span> <span class="w">overLimit</span></pre>
+    <div class="code-legend"><span><i class="dot op-d"></i>the app's operations</span><span><i class="dot wire-d"></i>the customer's wiring, in CEL</span></div></div>
+   <div class="rules">
+    <div class="r"><strong><i>01</i>Compose app operations</strong><p>Reads and writes from the app's catalog, in any order the behavior needs.</p></div>
+    <div class="r"><strong><i>02</i>Wire them with data</strong><p>Each step can use earlier results: the order's customer, the customer's owner.</p></div>
+    <div class="r"><strong><i>03</i>CEL is the glue</strong><p>Conditions and data mapping in CEL (Common Expression Language). It computes; it can't act.</p></div>
+    <div class="r"><strong><i>04</i>Nothing else</strong><p>No imports, URLs, loops or free-form code.</p></div>
+   </div>
+  </div></div>
+ </div>
+ <div class="num">10 / 13</div>
+</section>
+
+<!-- 11 COMPILER -->
+<section class="slide" data-title="The compiler fits it to this app.">
+ <div class="brand"><span class="mark"></span>keir</div><div class="meta">3 · THE COMPILER</div>
+ <div class="body">
+  <h2 class="t">The compiler fits it to this app.</h2>
+  <div class="scene"><div class="comp">
+   <div class="doc" style="left:40px"><div class="ic"></div><h3>Written by AI, in Keir</h3><div class="label">Bounded by the language</div></div>
+   <div class="wire" style="left:300px;width:78px"></div>
+   <div class="gate"><div class="label">Keir compiler</div><h3>Check against the app's contract</h3>
+    <div class="chk">Every operation is in this app's catalog</div><div class="chk">Types and data flow match</div><div class="chk">Within the app's limits</div></div>
+   <div class="wire" style="left:1022px;width:78px"></div>
+   <div class="doc" style="left:1130px"><div class="ic ok"></div><h3>Compiled artifact</h3><div class="label">Same for test and live</div></div>
+   <div class="reject"><span class="stem"></span><div><b>Doesn't fit?</b> Diagnostics back to the AI, which fixes it. Nothing runs until it fits.</div></div>
+  </div></div>
+ </div>
+ <div class="num">11 / 13</div>
+</section>
+
+<!-- 12 RUNTIME -->
+<section class="slide" data-title="At runtime, the app performs every real effect.">
+ <div class="brand"><span class="mark"></span>keir</div><div class="meta">4 · THE RUNTIME</div>
+ <div class="body">
+  <h2 class="t">At runtime, the app performs every real effect.</h2>
+  <div class="scene"><div class="hostbox"><span class="tag">INSIDE THE APP</span>
+   <div class="rail"><span>Host-supplied identity</span><span>·</span><span>Scope and authorization</span><span>·</span><span>Deadline and budget</span></div>
+   <div class="track">
+    <div class="node"><div class="label">App hook</div><h3 class="code">OrderConfirmed</h3><p>Trusted input from the app</p></div><div class="arw"></div>
+    <div class="node k"><div class="label">Keir runner</div><h3>Runs the checked composition</h3><p>Evaluates CEL, enforces limits</p></div><div class="arw"></div>
+    <div class="node"><div class="label">App adapters</div><h3 class="code">orders.hold<br>tasks.create</h3><p>Approved calls, host-supplied authorization</p></div><div class="arw"></div>
+    <div class="node"><div class="label">App services</div><h3>Order held, task opened</h3><p>The app's own rules still apply</p></div>
+   </div>
+   <div class="host-out"><strong>Keir has no direct access.</strong><span>Effects happen during the run, only through the app's own adapters and services.</span></div>
+  </div></div>
+ </div>
+ <div class="num">12 / 13</div>
+</section>
+
+<!-- 13 CLOSE -->
+<section class="slide dark" data-title="Customer-defined behavior. Platform-defined authority.">
+ <div class="brand"><span class="mark"></span>keir</div><div class="meta">CONTROLLED, AI-BUILT CUSTOMIZATION</div>
+ <h2 class="fin-hero">Customer-defined behavior.<br><span class="l">Platform-defined authority.</span></h2>
+ <div class="fin-ask">
+  <div><b>THE APP</b><strong>Publishes the building blocks</strong><p>Hooks, operations, permissions and limits. It performs every real effect.</p></div>
+  <div><b>BUSINESS USERS + AI</b><strong>Compose new behavior</strong><p>In their own words, confirmed through simulation. Built from those blocks alone.</p></div>
+  <div><b>KEIR</b><strong>Keeps execution in bounds</strong><p>A closed language, a compiler that checks it against the app, and a bounded runtime.</p></div>
+ </div>
+ <a class="fin-note" href="https://github.com/rore/keir-core" target="_blank" rel="noopener noreferrer" style="color:var(--lime)">github.com/rore/keir-core ↗</a>
+ <div class="num">13 / 13</div>
+</section>
+
+</main>
+<nav id="controls" aria-label="Presentation controls">
+ <button id="prev" type="button" aria-label="Previous slide" title="Previous (←)">‹</button>
+ <span id="count" aria-hidden="true"></span>
+ <button id="next" type="button" aria-label="Next slide" title="Next (→)">›</button>
+ <button id="ov-btn" type="button" aria-label="Slide overview" title="Overview (O)"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><rect x="1" y="1" width="6" height="6" rx="1.2"/><rect x="9" y="1" width="6" height="6" rx="1.2"/><rect x="1" y="9" width="6" height="6" rx="1.2"/><rect x="9" y="9" width="6" height="6" rx="1.2"/></svg></button>
+ <button id="fs-btn" type="button" aria-label="Fullscreen" title="Fullscreen (F)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M1.5 5.5v-4h4M10.5 1.5h4v4M14.5 10.5v4h-4M5.5 14.5h-4v-4"/></svg></button>
+</nav>
+<p id="rotate">↻ Turn your phone sideways for a larger view</p>
+<aside id="overview" role="dialog" aria-modal="true" aria-label="Slide overview" aria-hidden="true"><h2>Keir · slides</h2><div id="ov-grid"></div></aside>
+<div id="live" role="status" aria-live="polite"></div>
+<script>
+(()=>{
+ const stage=document.getElementById('stage'),slides=[...document.querySelectorAll('.slide')],total=slides.length;
+ const prev=document.getElementById('prev'),next=document.getElementById('next'),ov=document.getElementById('overview'),grid=document.getElementById('ov-grid');
+ let cur=0;
+ function fit(){const vv=window.visualViewport,w=vv?vv.width:innerWidth,h=(vv?vv.height:innerHeight)-56,s=Math.min(w/1600,h/900);stage.style.transform=`scale(${s})`;stage.style.left=`${(w-1600*s)/2}px`;stage.style.top=`${Math.max(0,(h-900*s)/2)}px`}
+ function show(i){cur=Math.max(0,Math.min(total-1,i));slides.forEach((s,j)=>{s.classList.toggle('active',j===cur);s.setAttribute('aria-hidden',String(j!==cur))});prev.disabled=cur===0;next.disabled=cur===total-1;document.getElementById('count').textContent=`${cur+1} / ${total}`;[...grid.children].forEach((b,j)=>b.classList.toggle('current',j===cur));document.getElementById('live').textContent=`Slide ${cur+1} of ${total}: ${slides[cur].dataset.title}`;history.replaceState(null,'',`#${cur+1}`)}
+ function toggleOv(force){const open=typeof force==='boolean'?force:!ov.classList.contains('open');ov.classList.toggle('open',open);ov.setAttribute('aria-hidden',String(!open));if(open)grid.children[cur]?.focus()}
+ function fs(){(document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen())?.catch?.(()=>{})}
+ slides.forEach((s,i)=>{const b=document.createElement('button');b.type='button';b.className='ov';b.innerHTML=`<small>${String(i+1).padStart(2,'0')}</small><strong></strong>`;b.lastChild.textContent=s.dataset.title;b.onclick=()=>{show(i);toggleOv(false)};grid.append(b)});
+ prev.onclick=()=>show(cur-1);next.onclick=()=>show(cur+1);document.getElementById('ov-btn').onclick=()=>toggleOv();document.getElementById('fs-btn').onclick=fs;
+ ov.addEventListener('click',e=>{if(e.target===ov)toggleOv(false)});
+ addEventListener('keydown',e=>{if(e.altKey||e.ctrlKey||e.metaKey)return;const k=e.key;const open=ov.classList.contains('open');
+  if(k==='Escape'){if(open)toggleOv(false);return}
+  if(k==='o'||k==='O'){e.preventDefault();toggleOv();return}
+  if(k==='f'||k==='F'){e.preventDefault();fs();return}
+  if(open)return;
+  if(['ArrowRight','ArrowDown','PageDown',' '].includes(k)){e.preventDefault();show(cur+1)}
+  else if(['ArrowLeft','ArrowUp','PageUp'].includes(k)){e.preventDefault();show(cur-1)}
+  else if(k==='Home')show(0);else if(k==='End')show(total-1)});
+ let tx=null;stage.addEventListener('touchstart',e=>{tx=e.changedTouches[0].screenX},{passive:true});stage.addEventListener('touchend',e=>{if(tx===null)return;const d=e.changedTouches[0].screenX-tx;if(Math.abs(d)>60)show(cur+(d<0?1:-1));tx=null},{passive:true});
+ addEventListener('resize',fit);document.addEventListener('fullscreenchange',fit);window.visualViewport?.addEventListener('resize',fit);
+ fit();show((parseInt(location.hash.slice(1),10)||1)-1);
+})();
+</script>
+</body>
+</html>
