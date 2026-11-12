@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Keir responsive checks</title>
+<style>
+ body{margin:24px;background:#e7eae4;color:#111b1f;font:16px/1.5 system-ui,sans-serif}
+ a{color:#205b50}button{font:inherit;padding:10px 18px}pre{white-space:pre-wrap}
+ #frames{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+ iframe{display:block;border:0;background:#111b1f}h2{font-size:18px}
+ .fail{color:#a52b13}.pass{color:#205b50}
+</style>
+<h1>Keir responsive checks</h1>
+<p>No dependencies. Serve the repository over HTTP, then open this page.</p>
+<p>Visual review:
+ <a href="?review=320">320px</a> · <a href="?review=390">390px</a> ·
+ <a href="?review=430">430px</a> · <a href="?review=844">844px landscape</a> ·
+ <a href="?review=932">932px landscape</a> · <a href="?review=1440">Desktop</a>.
+ Phone review panels expand to show all content. Controls are hidden only in these review panels.
+</p>
+<button id="run">Run checks</button>
+<pre id="results" role="status">Ready.</pre>
+<div id="frames"></div>
+<script>
+const frames=document.getElementById('frames'),results=document.getElementById('results');
+const ready=win=>new Promise(resolve=>win.requestAnimationFrame(()=>win.requestAnimationFrame(resolve)));
+async function load(width,height,slide=1,container=frames){
+ const frame=document.createElement('iframe');
+ frame.width=width;frame.height=height;frame.allowFullscreen=true;frame.title=`${width}px · slide ${slide}`;
+ const loaded=new Promise(resolve=>frame.onload=resolve);
+ frame.src=`../index.html#${slide}`;container.append(frame);await loaded;
+ await frame.contentDocument.fonts.ready;await ready(frame.contentWindow);
+ return frame;
+}
+document.getElementById('run').onclick=async()=>{
+ frames.replaceChildren();results.textContent='Running…';
+ const failures=[];let checks=0;
+ const check=(ok,message)=>{checks++;if(!ok)failures.push(message)};
+ try{
+  for(const width of [320,390,430,844,932]){
+   const height=width>=844?390:844,frame=await load(width,height);
+   const win=frame.contentWindow,doc=frame.contentDocument;
+   for(let slide=1;slide<=13;slide++){
+    if(slide>1)doc.getElementById('next').click();
+    await ready(win);
+    const panel=doc.querySelector('.slide.active');
+    check(win.location.hash===`#${slide}`,`${width}px: slide ${slide} navigation`);
+    check(panel.scrollWidth<=panel.clientWidth+1,`${width}px: slide ${slide} horizontal overflow`);
+    for(const el of panel.querySelectorAll('*')){
+     if(el.closest('svg,pre'))continue;
+     const r=el.getBoundingClientRect();
+     if(!r.width||!r.height)continue;
+     check(r.left>=-1&&r.right<=width+1,`${width}px: slide ${slide} clipped ${el.className||el.tagName}`);
+    }
+    const heading=panel.querySelector('h1,h2');
+    check(parseFloat(win.getComputedStyle(heading).fontSize)>=30,`${width}px: slide ${slide} heading too small`);
+    for(const p of panel.querySelectorAll('p')){
+     if(p.getBoundingClientRect().height)check(parseFloat(win.getComputedStyle(p).fontSize)>=16,`${width}px: slide ${slide} body text too small`);
+    }
+    panel.scrollTop=panel.scrollHeight;
+    check(panel.scrollTop+panel.clientHeight>=panel.scrollHeight-1,`${width}px: slide ${slide} bottom unreachable`);
+   }
+   for(const button of doc.querySelectorAll('#controls button')){
+    if(button.hidden)continue;
+    const r=button.getBoundingClientRect();
+    check(r.width>=44&&r.height>=44&&r.left>=0&&r.right<=width,`${width}px: navigation tap target`);
+   }
+   const key=(key,extra={})=>doc.body.dispatchEvent(new win.KeyboardEvent('keydown',{key,bubbles:true,cancelable:true,...extra}));
+   key('Home');await ready(win);
+   check(win.location.hash==='#1','Home returns to slide 1');
+   key('PageDown');check(doc.querySelector('.slide.active').scrollTop>0,'PageDown scrolls the phone slide');
+   check(win.location.hash==='#1','PageDown does not change slides');
+   key('ArrowRight');key('ArrowLeft');
+   check(doc.querySelector('.slide.active').scrollTop===0,'Revisited slide starts at top');
+   const stage=doc.getElementById('stage');
+   const touch=(name,x,y)=>stage.dispatchEvent(new win.TouchEvent(name,{bubbles:true,changedTouches:[new win.Touch({identifier:1,target:stage,clientX:x,clientY:y,screenX:x,screenY:y})]}));
+   touch('touchstart',250,600);touch('touchend',100,100);
+   check(win.location.hash==='#1','Diagonal reading gesture does not navigate');
+   touch('touchstart',250,300);touch('touchend',30,300);
+   check(win.location.hash==='#1','Horizontal phone gestures do not navigate');
+   const overviewButton=doc.getElementById('ov-btn');overviewButton.focus();overviewButton.click();await ready(win);
+   const overview=doc.getElementById('overview'),close=doc.getElementById('ov-close');
+   check(overview.classList.contains('open')&&stage.inert,'Overview opens and makes the deck inert');
+   check(overview.scrollWidth<=overview.clientWidth+1,'Overview fits narrow phones');
+   overview.scrollTop=overview.scrollHeight;await ready(win);
+   const closeRect=close.getBoundingClientRect();
+   check(closeRect.top>=0&&closeRect.bottom<=height,'Overview close remains visible at the bottom');
+   close.focus();key('Tab',{shiftKey:true});
+   check(doc.activeElement===doc.querySelector('#ov-grid button:last-child'),'Overview focus wraps backwards');
+   key('Tab');check(doc.activeElement===close,'Overview focus wraps forwards');
+   key('Escape');check(!overview.classList.contains('open')&&doc.activeElement===overviewButton,'Escape closes overview and restores focus');
+   doc.activeElement.blur();key('o');key('Escape');
+   check(doc.activeElement===overviewButton,'Overview opened from the page restores usable keyboard focus');
+   overviewButton.click();doc.querySelectorAll('#ov-grid button')[9].click();
+   check(win.location.hash==='#10'&&!overview.classList.contains('open'),'Overview selects a slide');
+   const pre=doc.querySelector('.slide.active pre');
+   pre.scrollLeft=pre.scrollWidth;
+   check(pre.scrollWidth<=pre.clientWidth||pre.scrollLeft>0,'Long code lines can scroll sideways');
+   pre.focus();pre.dispatchEvent(new win.KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true,cancelable:true}));
+   check(win.location.hash==='#10','Code arrow keys do not change slides');
+   frame.remove();
+  }
+  for(const width of [1440,1920]){
+   const frame=await load(width,width===1440?900:1080),win=frame.contentWindow,doc=frame.contentDocument;
+   check(win.getComputedStyle(doc.getElementById('stage')).width==='1600px',`${width}px: desktop canvas preserved`);
+   doc.body.dispatchEvent(new win.KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}));
+   check(win.location.hash==='#2',`${width}px: desktop keyboard navigation preserved`);
+   frame.remove();
+  }
+ }catch(error){failures.push(error.stack||String(error))}
+ results.className=failures.length?'fail':'pass';
+ results.textContent=`${checks} checks; ${failures.length} failures.\n${failures.join('\n')}`;
+ document.body.dataset.done='true';document.body.dataset.failures=failures.length;
+};
+const params=new URLSearchParams(location.search),width=Number(params.get('review'));
+if(width){
+ document.getElementById('run').hidden=true;results.textContent=`Visual review at ${width}px. Content is unchanged.`;
+ const start=Number(params.get('start'))||1,end=Number(params.get('end'))||13;
+ (async()=>{for(let slide=start;slide<=end;slide++){
+  const card=document.createElement('section'),heading=document.createElement('h2');
+  heading.textContent=`${width}px · slide ${slide}`;frames.append(card);card.append(heading);
+  const frame=await load(width,width>=844&&width<=960?390:844,slide,card);
+  if(width<=960){
+   const style=frame.contentDocument.createElement('style');style.textContent='.slide{scrollbar-gutter:stable}#controls{display:none}';frame.contentDocument.head.append(style);
+   frame.height=frame.contentDocument.querySelector('.slide.active').scrollHeight;
+   await ready(frame.contentWindow);
+   frame.height=Math.max(Number(frame.height),frame.contentDocument.querySelector('.slide.active').scrollHeight);
+  }
+ }document.body.dataset.done='true'})();
+}
+if(params.has('run'))document.getElementById('run').click();
+</script>
+</html>
