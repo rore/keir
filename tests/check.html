@@ -33,18 +33,24 @@ async function load(width,height,slide=1,container=frames){
  return frame;
 }
 document.getElementById('run').onclick=async()=>{
- frames.replaceChildren();results.textContent='Running…';
+  frames.replaceChildren();delete document.body.dataset.done;results.textContent='Running…';
  const failures=[];let checks=0;
  const check=(ok,message)=>{checks++;if(!ok)failures.push(message)};
  try{
    for(const width of [320,390,430]){
     const height=844,frame=await load(width,height);
-   const win=frame.contentWindow,doc=frame.contentDocument;
+   const win=frame.contentWindow,doc=frame.contentDocument,stage=doc.getElementById('stage'),controls=doc.getElementById('controls'),counter=doc.getElementById('slide-count');
+   check(controls.hidden,'Phone controls start hidden');
+   check(counter.textContent==='1/13'&&counter.getBoundingClientRect().width>=44,'Persistent counter starts at 1/13 and is tappable');
+   doc.querySelector('.brand').click();check(!controls.hidden,'Tapping a slide reveals controls');
+   doc.getElementById('next').focus();doc.querySelector('.brand').click();check(controls.hidden&&doc.activeElement===counter,'Hiding controls moves keyboard focus to the visible counter');
+   counter.click();check(!controls.hidden&&counter.getAttribute('aria-expanded')==='true','Counter can reveal controls');
    for(let slide=1;slide<=13;slide++){
     if(slide>1)doc.getElementById('next').click();
     await ready(win);
     const panel=doc.querySelector('.slide.active');
-    check(win.location.hash===`#${slide}`,`${width}px: slide ${slide} navigation`);
+     check(win.location.hash===`#${slide}`,`${width}px: slide ${slide} navigation`);
+     check(counter.textContent===`${slide}/13`,`${width}px: slide ${slide} persistent counter`);
     check(panel.scrollWidth<=panel.clientWidth+1,`${width}px: slide ${slide} horizontal overflow`);
     for(const el of panel.querySelectorAll('*')){
      if(el.closest('svg,pre'))continue;
@@ -72,15 +78,34 @@ document.getElementById('run').onclick=async()=>{
    check(win.location.hash==='#1','PageDown does not change slides');
    key('ArrowRight');key('ArrowLeft');
    check(doc.querySelector('.slide.active').scrollTop===0,'Revisited slide starts at top');
-   const stage=doc.getElementById('stage');
-   const touch=(name,x,y)=>stage.dispatchEvent(new win.TouchEvent(name,{bubbles:true,changedTouches:[new win.Touch({identifier:1,target:stage,clientX:x,clientY:y,screenX:x,screenY:y})]}));
-   touch('touchstart',250,600);touch('touchend',100,100);
+   const touch=(name,x,y,target=stage,count=1)=>{const points=Array.from({length:count},(_,i)=>new win.Touch({identifier:i,target,clientX:x+i*20,clientY:y,screenX:x+i*20,screenY:y}));return target.dispatchEvent(new win.TouchEvent(name,{bubbles:true,cancelable:true,touches:name==='touchend'||name==='touchcancel'?[]:points,changedTouches:points}))};
+   touch('touchstart',250,600);check(touch('touchmove',180,300),'Vertical reading gestures keep native scrolling');touch('touchend',100,100);
    check(win.location.hash==='#1','Diagonal reading gesture does not navigate');
-   touch('touchstart',250,300);touch('touchend',30,300);
-   check(win.location.hash==='#1','Horizontal phone gestures do not navigate');
+   touch('touchstart',250,300);check(!touch('touchmove',130,305),'Slide swipes prevent native horizontal browser gestures');touch('touchend',30,310);
+   check(win.location.hash==='#2'&&counter.textContent==='2/13'&&controls.hidden,'Swipe left advances a slide, updates the counter and hides controls');
+   stage.click();check(controls.hidden,'A swipe-generated click does not reopen controls');
+   touch('touchstart',200,200);touch('touchend',200,200);stage.click();check(!controls.hidden,'A deliberate tap immediately after a swipe reveals controls');
+   touch('touchstart',200,200);touch('touchend',200,200);stage.click();check(controls.hidden,'A second deliberate tap hides controls');
+   touch('touchstart',30,300);touch('touchmove',150,305);touch('touchend',250,310);
+   check(win.location.hash==='#1','Swipe right returns to the previous slide');
+   touch('touchstart',250,600);touch('touchmove',245,540);touch('touchend',30,490);
+   check(win.location.hash==='#1','A gesture that starts vertically stays a reading gesture');
+   touch('touchstart',100,300);touch('touchend',135,302);
+   check(win.location.hash==='#1','Short gestures do not navigate');
+   touch('touchstart',250,300);touch('touchcancel',130,300);touch('touchend',30,300);
+   check(win.location.hash==='#1','Cancelled gestures do not navigate');
+   touch('touchstart',250,300,stage,2);touch('touchend',30,300);
+   check(win.location.hash==='#1','Multi-touch gestures do not navigate');
+   touch('touchstart',30,300);touch('touchend',250,300);
+   check(win.location.hash==='#1','Swiping before the first slide stays at 1/13');
+   key('End');touch('touchstart',250,300);touch('touchend',30,300);
+   check(win.location.hash==='#13'&&counter.textContent==='13/13','Swiping after the last slide stays at 13/13');
+   const link=doc.querySelector('.slide.active .fin-note');link.addEventListener('click',event=>event.preventDefault(),{once:true});link.click();
+   check(controls.hidden&&link.href==='https://github.com/rore/keir-core','The repository link stays intact and does not toggle controls');
+   key('Home');counter.click();
    const overviewButton=doc.getElementById('ov-btn');overviewButton.focus();overviewButton.click();await ready(win);
    const overview=doc.getElementById('overview'),close=doc.getElementById('ov-close');
-   check(overview.classList.contains('open')&&stage.inert,'Overview opens and makes the deck inert');
+   check(overview.classList.contains('open')&&stage.inert&&counter.inert,'Overview opens and makes the deck and counter inert');
    check(overview.scrollWidth<=overview.clientWidth+1,'Overview fits narrow phones');
    overview.scrollTop=overview.scrollHeight;await ready(win);
    const closeRect=close.getBoundingClientRect();
@@ -90,12 +115,15 @@ document.getElementById('run').onclick=async()=>{
    key('Tab');check(doc.activeElement===close,'Overview focus wraps forwards');
    key('Escape');check(!overview.classList.contains('open')&&doc.activeElement===overviewButton,'Escape closes overview and restores focus');
    doc.activeElement.blur();key('o');key('Escape');
-   check(doc.activeElement===overviewButton,'Overview opened from the page restores usable keyboard focus');
+   check(doc.activeElement===counter,'Overview opened from the page restores usable keyboard focus');
    overviewButton.click();doc.querySelectorAll('#ov-grid button')[9].click();
    check(win.location.hash==='#10'&&!overview.classList.contains('open'),'Overview selects a slide');
    const pre=doc.querySelector('.slide.active pre');
    pre.scrollLeft=pre.scrollWidth;
    check(pre.scrollWidth<=pre.clientWidth||pre.scrollLeft>0,'Long code lines can scroll sideways');
+   touch('touchstart',250,300,pre);touch('touchmove',130,300,pre);touch('touchend',30,300,pre);
+   check(win.location.hash==='#10','Horizontal code gestures do not change slides');
+   const controlsBeforeCodeTap=controls.hidden;pre.click();check(controls.hidden===controlsBeforeCodeTap,'Tapping code does not toggle controls');
    pre.focus();pre.dispatchEvent(new win.KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true,cancelable:true}));
     check(win.location.hash==='#10','Code arrow keys do not change slides');
     doc.querySelector('.slide.active').scrollTop=200;
@@ -103,22 +131,35 @@ document.getElementById('run').onclick=async()=>{
     const rotatedStage=stage.getBoundingClientRect(),rotatedPanel=doc.querySelector('.slide.active');
     check(win.location.hash==='#10','Rotation keeps the current slide');
     check(rotatedPanel.scrollTop===0,'Rotation clears the portrait scroll offset');
-    check(rotatedStage.left>=-1&&rotatedStage.right<=844+1&&rotatedStage.top>=-1&&rotatedStage.bottom<=doc.getElementById('controls').getBoundingClientRect().top,'Rotated slide fits above navigation');
+    check(rotatedStage.left>=-1&&rotatedStage.right<=844+1&&rotatedStage.top>=-1&&rotatedStage.bottom<=390+1,'Rotated slide fits the full viewport');
     check(rotatedPanel.scrollHeight<=rotatedPanel.clientHeight+1,'Rotated slide needs no vertical scrolling');
     frame.width=width;frame.height=height;await ready(win);
     check(win.getComputedStyle(stage).width===`${width}px`,'Rotating back restores portrait reading layout');
     frame.remove();
    }
    for(const [width,height] of [[667,375],[844,390],[932,430]]){
-    const frame=await load(width,height),win=frame.contentWindow,doc=frame.contentDocument;
+    const frame=await load(width,height),win=frame.contentWindow,doc=frame.contentDocument,controls=doc.getElementById('controls'),counter=doc.getElementById('slide-count');
+    check(controls.hidden,'Landscape starts with controls hidden');
+    const before=doc.getElementById('stage').getBoundingClientRect();
+    counter.click();const after=doc.getElementById('stage').getBoundingClientRect();
+    check(!controls.hidden&&Math.abs(before.width-after.width)<1&&Math.abs(before.height-after.height)<1,'Revealing landscape controls does not shrink the slide');
     for(let slide=1;slide<=13;slide++){
      if(slide>1)doc.getElementById('next').click();await ready(win);
      const stage=doc.getElementById('stage').getBoundingClientRect(),panel=doc.querySelector('.slide.active'),controls=doc.getElementById('controls').getBoundingClientRect();
      check(win.location.hash===`#${slide}`,`${width}px landscape: slide ${slide} navigation`);
      check(stage.left>=-1&&stage.right<=width+1&&stage.top>=-1&&stage.bottom<=height+1,`${width}px landscape: slide ${slide} fits viewport`);
-     check(stage.bottom<=controls.top,`${width}px landscape: slide ${slide} avoids navigation`);
+     const scale=Math.min(width/1600,height/900);
+     check(Math.abs(stage.width-1600*scale)<1&&Math.abs(stage.height-900*scale)<1,`${width}px landscape: slide ${slide} uses the maximum available space`);
+     check(counter.textContent===`${slide}/13`,`${width}px landscape: slide ${slide} counter`);
      check(panel.scrollHeight<=panel.clientHeight+1&&panel.scrollWidth<=panel.clientWidth+1&&panel.scrollTop===0,`${width}px landscape: slide ${slide} needs no scrolling`);
     }
+    const canvas=doc.getElementById('stage');
+    for(const [side,value] of Object.entries({left:44,right:44,top:8,bottom:34}))canvas.style.setProperty(`--safe-${side}`,`${value}px`);
+    win.dispatchEvent(new win.Event('resize'));await ready(win);
+    const safe=canvas.getBoundingClientRect();
+    check(safe.left>=44-1&&safe.right<=width-44+1&&safe.top>=8-1&&safe.bottom<=height-34+1,`${width}px landscape: canvas respects notch and home-indicator insets`);
+    for(const side of ['left','right','top','bottom'])canvas.style.removeProperty(`--safe-${side}`);
+    win.dispatchEvent(new win.Event('resize'));await ready(win);
     for(const button of doc.querySelectorAll('#controls button')){
      if(button.hidden)continue;const r=button.getBoundingClientRect();
      check(r.width>=44&&r.height>=44&&r.left>=0&&r.right<=width&&r.bottom<=height,`${width}px landscape: navigation tap target`);
