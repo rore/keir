@@ -17,6 +17,9 @@
 *{box-sizing:border-box}
 html,body{margin:0;width:100%;height:100%;overflow:hidden;overscroll-behavior-x:none;background:#0A1214;font-family:var(--font);-webkit-font-smoothing:antialiased}
 h1,h2,h3,p,blockquote{margin:0}
+#canvas-viewport,#canvas-surface{display:contents}
+#canvas-viewport.magnified{display:block;position:fixed;inset:0;overflow:auto;overscroll-behavior:contain}
+#canvas-viewport.magnified #canvas-surface{display:block;position:relative;overflow:hidden;min-width:100%;min-height:100%}
 #stage{position:absolute;left:0;top:0;width:1600px;height:900px;transform-origin:top left;overflow:hidden;background:var(--cream);--safe-left:env(safe-area-inset-left,0px);--safe-right:env(safe-area-inset-right,0px);--safe-top:env(safe-area-inset-top,0px);--safe-bottom:env(safe-area-inset-bottom,0px)}
 .slide{position:absolute;inset:0;display:none;background:var(--cream);color:var(--ink);overflow:hidden}
 .slide.active{display:block}
@@ -251,6 +254,7 @@ h1,h2,h3,p,blockquote{margin:0}
 #controls{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:20;display:flex;gap:4px;padding:4px;border-radius:30px;background:#111B1FCC;border:1px solid #3A4F4B;backdrop-filter:blur(6px);opacity:.75;transition:opacity .15s}
 #controls:hover,#controls:focus-within{opacity:1}
 #controls[hidden]{display:none}
+#portrait-hint{display:none}
 #slide-count{position:fixed;right:max(16px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));z-index:21;min-width:48px;min-height:44px;padding:6px 8px;border:1px solid #3A4F4B;border-radius:8px;background:#111B1FCC;color:#EEF2EE;font:600 12px var(--mono);cursor:pointer;touch-action:manipulation}
 #controls button{width:32px;height:32px;padding:0;border-radius:50%;border:0;background:transparent;color:#EEF2EE;font-size:18px;line-height:1;cursor:pointer;display:grid;place-items:center}
 #controls svg{width:15px;height:15px;display:block}
@@ -273,6 +277,8 @@ h1,h2,h3,p,blockquote{margin:0}
 @media (prefers-reduced-motion:reduce){#controls{transition:none}}
 /* Portrait phones read vertically; landscape phones use the fitted slide canvas. */
 @media screen and (max-width:960px) and (orientation:portrait){
+ #portrait-hint{display:block;position:fixed;left:max(16px,env(safe-area-inset-left));bottom:max(12px,env(safe-area-inset-bottom));max-width:calc(100% - 104px);z-index:19;padding:8px 12px;border-radius:8px;background:#111B1FF2;color:#C9D6D0;font-size:14px;line-height:1.4;pointer-events:none}
+ #controls:not([hidden]) ~ #portrait-hint{bottom:calc(max(12px,env(safe-area-inset-bottom)) + 74px)}
  #stage{position:fixed;inset:0;width:100%;height:100%;height:100dvh;transform:none!important}
  .slide{padding:28px 22px calc(110px + env(safe-area-inset-bottom));padding-left:max(22px,env(safe-area-inset-left));padding-right:max(22px,env(safe-area-inset-right));padding-top:max(28px,env(safe-area-inset-top));overflow-y:auto;overscroll-behavior-y:contain;overflow-wrap:anywhere;-webkit-text-size-adjust:100%;text-size-adjust:100%}
  .slide *{min-width:0}
@@ -414,6 +420,7 @@ h1,h2,h3,p,blockquote{margin:0}
 </style>
 </head>
 <body>
+<div id="canvas-viewport"><div id="canvas-surface">
 <main id="stage" aria-label="Keir presentation">
 
 <!-- 01 COVER -->
@@ -723,6 +730,7 @@ h1,h2,h3,p,blockquote{margin:0}
 </section>
 
 </main>
+</div></div>
 <nav id="controls" aria-label="Presentation controls">
  <button id="prev" type="button" aria-label="Previous slide" title="Previous (←)">‹</button>
  <span id="count" aria-hidden="true"></span>
@@ -731,23 +739,30 @@ h1,h2,h3,p,blockquote{margin:0}
  <button id="fs-btn" type="button" aria-label="Fullscreen" title="Fullscreen (F)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M1.5 5.5v-4h4M10.5 1.5h4v4M14.5 10.5v4h-4M5.5 14.5h-4v-4"/></svg></button>
 </nav>
 <button id="slide-count" type="button" aria-label="Show presentation controls" aria-controls="controls" aria-expanded="false">1/13</button>
+<p id="portrait-hint" role="note">↻ Try landscape for the full slide.</p>
 <aside id="overview" role="dialog" aria-modal="true" aria-label="Slide overview" aria-hidden="true"><button id="ov-close" type="button" aria-label="Close slide overview">Close ×</button><h2>Keir · slides</h2><div id="ov-grid"></div></aside>
 <div id="live" role="status" aria-live="polite"></div>
 <script>
 (()=>{
- const stage=document.getElementById('stage'),slides=[...document.querySelectorAll('.slide')],total=slides.length;
+ const stage=document.getElementById('stage'),slides=[...document.querySelectorAll('.slide')],total=slides.length,canvasViewport=document.getElementById('canvas-viewport'),surface=document.getElementById('canvas-surface');
  const prev=document.getElementById('prev'),next=document.getElementById('next'),ov=document.getElementById('overview'),grid=document.getElementById('ov-grid');
  const phone=matchMedia('(max-width:960px)'),reading=matchMedia('(max-width:960px) and (orientation:portrait)'),controls=document.getElementById('controls'),counter=document.getElementById('slide-count');
- let cur=0,returnFocus=null;
+ let cur=0,returnFocus=null,zoom=1,pinch=null;
+ const isZoomed=()=> zoom>1.01||(window.visualViewport?.scale||1)>1.01;
  function toggleControls(force){const open=typeof force==='boolean'?force:controls.hidden;controls.hidden=!open;counter.setAttribute('aria-expanded',String(open));counter.setAttribute('aria-label',`Slide ${cur+1} of ${total}. ${open?'Hide':'Show'} presentation controls`);if(!open&&controls.contains(document.activeElement))counter.focus({preventScroll:true})}
  function fit(){
+  if(reading.matches||!document.fullscreenElement){zoom=1;pinch=null}
+  const magnified=zoom>1.01;canvasViewport.classList.toggle('magnified',magnified);
+  if(!magnified){surface.style.width='';surface.style.height='';canvasViewport.scrollLeft=0;canvasViewport.scrollTop=0}
   if(reading.matches){stage.style.transform='';stage.style.left='';stage.style.top='';return}slides[cur].scrollTop=0;
   const vv=window.visualViewport,edge=phone.matches||document.fullscreenElement?getComputedStyle(stage):null;
   const left=parseFloat(edge?.getPropertyValue('--safe-left'))||0,right=parseFloat(edge?.getPropertyValue('--safe-right'))||0,top=parseFloat(edge?.getPropertyValue('--safe-top'))||0,bottom=parseFloat(edge?.getPropertyValue('--safe-bottom'))||0;
-  const w=(vv?vv.width:innerWidth)-left-right,h=(vv?vv.height:innerHeight)-top-bottom-(edge?0:56),s=Math.min(w/1600,h/900);
-  stage.style.transform=`scale(${s})`;stage.style.left=`${left+(w-1600*s)/2}px`;stage.style.top=`${top+Math.max(0,(h-900*s)/2)}px`;
+  // Pinching shrinks the visual viewport; fitting to that smaller size cancels the browser's zoom.
+  const w=(vv?Math.round(vv.width*vv.scale):innerWidth)-left-right,h=(vv?Math.round(vv.height*vv.scale):innerHeight)-top-bottom-(edge?0:56),s=Math.min(w/1600,h/900)*zoom;
+  if(magnified){surface.style.width=`${left+Math.max(w,1600*s)+right}px`;surface.style.height=`${top+Math.max(h,900*s)+bottom}px`}
+  stage.style.transform=`scale(${s})`;stage.style.left=`${left+Math.max(0,(w-1600*s)/2)}px`;stage.style.top=`${top+Math.max(0,(h-900*s)/2)}px`;
  }
- function show(i){const before=cur;cur=Math.max(0,Math.min(total-1,i));slides.forEach((s,j)=>{s.classList.toggle('active',j===cur);s.setAttribute('aria-hidden',String(j!==cur));s.inert=j!==cur});if(before!==cur)slides[cur].scrollTop=0;prev.disabled=cur===0;next.disabled=cur===total-1;document.getElementById('count').textContent=`${cur+1} / ${total}`;counter.textContent=`${cur+1}/${total}`;toggleControls(!controls.hidden);[...grid.children].forEach((b,j)=>b.classList.toggle('current',j===cur));document.getElementById('live').textContent=`Slide ${cur+1} of ${total}: ${slides[cur].dataset.title}`;history.replaceState(null,'',`#${cur+1}`)}
+ function show(i){const before=cur;cur=Math.max(0,Math.min(total-1,i));slides.forEach((s,j)=>{s.classList.toggle('active',j===cur);s.setAttribute('aria-hidden',String(j!==cur));s.inert=j!==cur});if(before!==cur){slides[cur].scrollTop=0;if(zoom!==1){zoom=1;pinch=null;fit()}}prev.disabled=cur===0;next.disabled=cur===total-1;document.getElementById('count').textContent=`${cur+1} / ${total}`;counter.textContent=`${cur+1}/${total}`;toggleControls(!controls.hidden);[...grid.children].forEach((b,j)=>b.classList.toggle('current',j===cur));document.getElementById('live').textContent=`Slide ${cur+1} of ${total}: ${slides[cur].dataset.title}`;history.replaceState(null,'',`#${cur+1}`)}
  function toggleOv(force){const open=typeof force==='boolean'?force:!ov.classList.contains('open');if(open)returnFocus=document.activeElement;ov.classList.toggle('open',open);ov.setAttribute('aria-hidden',String(!open));stage.inert=open;controls.inert=open;counter.inert=open;if(open){grid.children[cur]?.focus()}else{(returnFocus?.isConnected&&returnFocus.tabIndex>=0&&!returnFocus.disabled&&!returnFocus.closest('[inert],[hidden]')?returnFocus:counter).focus({preventScroll:true})}}
  function fs(){(document.fullscreenElement?document.exitFullscreen?.():document.documentElement.requestFullscreen?.())?.catch?.(()=>{})}
  slides.forEach((s,i)=>{const b=document.createElement('button');b.type='button';b.className='ov';b.innerHTML=`<small>${String(i+1).padStart(2,'0')}</small><strong></strong>`;b.lastChild.textContent=s.dataset.title;b.onclick=()=>{show(i);toggleOv(false)};grid.append(b)});
@@ -768,13 +783,16 @@ h1,h2,h3,p,blockquote{margin:0}
   else if(['ArrowLeft','ArrowUp','PageUp'].includes(k)){e.preventDefault();show(cur-1)}
   else if(k==='Home'){e.preventDefault();show(0)}else if(k==='End'){e.preventDefault();show(total-1)}});
  // Lock vertical reading gestures and leave horizontal code scrolling to the browser.
+ // Browsers can disable native pinch zoom in fullscreen. Scale a native scroll surface there.
+ function startPinch(points){const [a,b]=points,distance=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY),rect=stage.getBoundingClientRect();if(distance<1)return null;return {distance,zoom,x:((a.clientX+b.clientX)/2-rect.left)*1600/rect.width,y:((a.clientY+b.clientY)/2-rect.top)*900/rect.height}}
+ function movePinch(points){const [a,b]=points,distance=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);zoom=Math.max(1,Math.min(4,pinch.zoom*distance/pinch.distance));if(zoom<1.01)zoom=1;fit();const rect=stage.getBoundingClientRect();canvasViewport.scrollLeft+=rect.left+pinch.x*rect.width/1600-(a.clientX+b.clientX)/2;canvasViewport.scrollTop+=rect.top+pinch.y*rect.height/900-(a.clientY+b.clientY)/2}
  let touch=null,ignoreClick=false;
- stage.addEventListener('touchstart',e=>{touch=null;ignoreClick=false;if(e.touches.length!==1){ignoreClick=true;return}if(e.target.closest('a,button,input,textarea,select,pre,.chip'))return;const t=e.touches[0];touch={x:t.clientX,y:t.clientY,axis:null}},{passive:true});
- stage.addEventListener('touchmove',e=>{if(e.touches.length!==1){touch=null;ignoreClick=true;return}if(!touch)return;const dx=e.touches[0].clientX-touch.x,dy=e.touches[0].clientY-touch.y;if(Math.max(Math.abs(dx),Math.abs(dy))>12){ignoreClick=true;if(!touch.axis)touch.axis=Math.abs(dx)>Math.abs(dy)*1.5?'x':'y'}if(touch.axis==='x'&&Math.abs(dx)>Math.abs(dy)*1.8&&e.cancelable)e.preventDefault()},{passive:false});
- stage.addEventListener('touchend',e=>{const start=touch;touch=null;if(!start||e.touches.length)return;const dx=e.changedTouches[0].clientX-start.x,dy=e.changedTouches[0].clientY-start.y;if(Math.max(Math.abs(dx),Math.abs(dy))>12)ignoreClick=true;if(start.axis!=='y'&&Math.abs(dx)>=60&&Math.abs(dx)>Math.abs(dy)*1.8){show(cur+(dx<0?1:-1));toggleControls(false)}},{passive:true});
- stage.addEventListener('touchcancel',()=>{touch=null;ignoreClick=true},{passive:true});
- stage.addEventListener('pointerdown',e=>{if(e.pointerType!=='touch')ignoreClick=false});
- stage.addEventListener('click',e=>{if(ignoreClick){ignoreClick=false;return}if(e.target.closest('a,button,input,textarea,select,pre,.chip')||getSelection()?.isCollapsed===false)return;toggleControls()});
+ canvasViewport.addEventListener('touchstart',e=>{touch=null;pinch=null;ignoreClick=false;if(document.fullscreenElement&&!reading.matches&&e.touches.length===2){pinch=startPinch(e.touches);ignoreClick=true;return}if(isZoomed()||e.touches.length!==1){ignoreClick=true;return}if(e.target.closest('a,button,input,textarea,select,pre,.chip'))return;const t=e.touches[0];touch={x:t.clientX,y:t.clientY,axis:null}},{passive:true});
+ canvasViewport.addEventListener('touchmove',e=>{if(pinch&&document.fullscreenElement&&!reading.matches&&e.touches.length===2){if(e.cancelable)e.preventDefault();movePinch(e.touches);return}if(isZoomed()||e.touches.length!==1){touch=null;ignoreClick=true;return}if(!touch)return;const dx=e.touches[0].clientX-touch.x,dy=e.touches[0].clientY-touch.y;if(Math.max(Math.abs(dx),Math.abs(dy))>12){ignoreClick=true;if(!touch.axis)touch.axis=Math.abs(dx)>Math.abs(dy)*1.5?'x':'y'}if(touch.axis==='x'&&Math.abs(dx)>Math.abs(dy)*1.8&&e.cancelable)e.preventDefault()},{passive:false});
+ canvasViewport.addEventListener('touchend',e=>{if(pinch){pinch=null;touch=null;ignoreClick=true;return}const start=touch;touch=null;if(!start||e.touches.length||isZoomed())return;const dx=e.changedTouches[0].clientX-start.x,dy=e.changedTouches[0].clientY-start.y;if(Math.max(Math.abs(dx),Math.abs(dy))>12)ignoreClick=true;if(start.axis!=='y'&&Math.abs(dx)>=60&&Math.abs(dx)>Math.abs(dy)*1.8){show(cur+(dx<0?1:-1));toggleControls(false)}},{passive:true});
+ canvasViewport.addEventListener('touchcancel',()=>{touch=null;pinch=null;ignoreClick=true},{passive:true});
+ canvasViewport.addEventListener('pointerdown',e=>{if(e.pointerType!=='touch')ignoreClick=false});
+ canvasViewport.addEventListener('click',e=>{if(ignoreClick){ignoreClick=false;return}if(isZoomed()||e.target.closest('a,button,input,textarea,select,pre,.chip')||getSelection()?.isCollapsed===false)return;toggleControls()});
  addEventListener('resize',fit);reading.addEventListener('change',fit);document.addEventListener('fullscreenchange',()=>{if(document.fullscreenElement)toggleControls(false);fit()});window.visualViewport?.addEventListener('resize',fit);
  toggleControls(!phone.matches);fit();show((parseInt(location.hash.slice(1),10)||1)-1);
 })();

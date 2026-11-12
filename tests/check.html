@@ -42,7 +42,11 @@ document.getElementById('run').onclick=async()=>{
    const win=frame.contentWindow,doc=frame.contentDocument,stage=doc.getElementById('stage'),controls=doc.getElementById('controls'),counter=doc.getElementById('slide-count');
    check(controls.hidden,'Phone controls start hidden');
    check(counter.textContent==='1/13'&&counter.getBoundingClientRect().width>=44,'Persistent counter starts at 1/13 and is tappable');
+   const hint=doc.getElementById('portrait-hint'),hintRect=hint.getBoundingClientRect();
+   check(win.getComputedStyle(hint).display!=='none'&&hint.textContent.includes('landscape'),'Portrait suggests trying landscape');
+   check(hintRect.left>=0&&hintRect.bottom<=height&&hintRect.right<=counter.getBoundingClientRect().left-8,'Portrait hint fits beside the counter');
    doc.querySelector('.brand').click();check(!controls.hidden,'Tapping a slide reveals controls');
+   check(hint.getBoundingClientRect().bottom<=controls.getBoundingClientRect().top,'Portrait hint stays clear of revealed controls');
    doc.getElementById('next').focus();doc.querySelector('.brand').click();check(controls.hidden&&doc.activeElement===counter,'Hiding controls moves keyboard focus to the visible counter');
    counter.click();check(!controls.hidden&&counter.getAttribute('aria-expanded')==='true','Counter can reveal controls');
    for(let slide=1;slide<=13;slide++){
@@ -131,15 +135,46 @@ document.getElementById('run').onclick=async()=>{
     const rotatedStage=stage.getBoundingClientRect(),rotatedPanel=doc.querySelector('.slide.active');
     check(win.location.hash==='#10','Rotation keeps the current slide');
     check(rotatedPanel.scrollTop===0,'Rotation clears the portrait scroll offset');
-    check(rotatedStage.left>=-1&&rotatedStage.right<=844+1&&rotatedStage.top>=-1&&rotatedStage.bottom<=390+1,'Rotated slide fits the full viewport');
-    check(rotatedPanel.scrollHeight<=rotatedPanel.clientHeight+1,'Rotated slide needs no vertical scrolling');
-    frame.width=width;frame.height=height;await ready(win);
+     check(rotatedStage.left>=-1&&rotatedStage.right<=844+1&&rotatedStage.top>=-1&&rotatedStage.bottom<=390+1,'Rotated slide fits the full viewport');
+     check(rotatedPanel.scrollHeight<=rotatedPanel.clientHeight+1,'Rotated slide needs no vertical scrolling');
+     const viewport=win.visualViewport,descriptors=new Map(['width','height','scale'].map(name=>[name,Object.getOwnPropertyDescriptor(viewport,name)]));
+     const zoom={width:viewport.width/2,height:viewport.height/2,scale:viewport.scale*2},beforeZoom=stage.getBoundingClientRect(),controlsBeforeZoom=controls.hidden;
+     for(const [name,value] of Object.entries(zoom))Object.defineProperty(viewport,name,{configurable:true,value});
+     viewport.dispatchEvent(new win.Event('resize'));await ready(win);
+     const zoomed=stage.getBoundingClientRect();
+     check(Math.abs(zoomed.width-beforeZoom.width)<1&&Math.abs(zoomed.height-beforeZoom.height)<1,'Pinch zoom does not shrink the underlying slide to cancel magnification');
+     touch('touchstart',250,200);check(touch('touchmove',130,200),'Zoomed one-finger panning keeps native browser behavior');touch('touchend',30,200);stage.click();
+     check(win.location.hash==='#10'&&controls.hidden===controlsBeforeZoom,'Zoomed panning neither changes slides nor toggles controls');
+     for(const [name,descriptor] of descriptors){if(descriptor)Object.defineProperty(viewport,name,descriptor);else delete viewport[name]}
+     viewport.dispatchEvent(new win.Event('resize'));await ready(win);
+     touch('touchstart',250,200);touch('touchmove',130,200);touch('touchend',30,200);
+     check(win.location.hash==='#11','Zooming back out restores slide swipes');doc.getElementById('prev').click();
+     const fullscreenDescriptor=Object.getOwnPropertyDescriptor(doc,'fullscreenElement'),canvasViewport=doc.getElementById('canvas-viewport');
+     Object.defineProperty(doc,'fullscreenElement',{configurable:true,value:doc.documentElement});doc.dispatchEvent(new win.Event('fullscreenchange'));
+     const pinchTouch=(name,distance)=>{const points=[-1,1].map((direction,i)=>new win.Touch({identifier:i,target:stage,clientX:422+direction*distance,clientY:195}));return stage.dispatchEvent(new win.TouchEvent(name,{bubbles:true,cancelable:true,touches:name==='touchend'?[]:points,changedTouches:points}))};
+     pinchTouch('touchstart',40);check(!pinchTouch('touchmove',80),'Fullscreen pinch is handled without relying on native browser zoom');pinchTouch('touchend',80);await ready(win);
+     check(canvasViewport.classList.contains('magnified')&&Math.abs(stage.getBoundingClientRect().width-beforeZoom.width*2)<1,'Fullscreen pinch magnifies the slide');
+     const scrollBefore=canvasViewport.scrollLeft;canvasViewport.scrollLeft+=30;
+     check(canvasViewport.scrollLeft>scrollBefore&&canvasViewport.scrollHeight>canvasViewport.clientHeight,'Magnified fullscreen canvas has native horizontal and vertical pan space');
+     touch('touchstart',250,200);check(touch('touchmove',130,200),'Fullscreen zoom leaves one-finger panning native');touch('touchend',30,200);
+     check(win.location.hash==='#10','Panning a magnified fullscreen slide does not navigate');
+     pinchTouch('touchstart',80);pinchTouch('touchmove',40);pinchTouch('touchend',40);await ready(win);
+     check(!canvasViewport.classList.contains('magnified')&&Math.abs(stage.getBoundingClientRect().width-beforeZoom.width)<1,'Fullscreen pinch-out restores the fitted slide');
+     pinchTouch('touchstart',0);pinchTouch('touchmove',80);pinchTouch('touchend',80);
+     check(Math.abs(stage.getBoundingClientRect().width-beforeZoom.width)<1,'Overlapping pinch points cannot produce an invalid scale');
+     pinchTouch('touchstart',40);pinchTouch('touchmove',400);pinchTouch('touchend',400);
+     check(Math.abs(stage.getBoundingClientRect().width-beforeZoom.width*4)<1,'Fullscreen zoom is capped at 4x');
+     doc.getElementById('next').click();check(!canvasViewport.classList.contains('magnified'),'Changing slides resets fullscreen magnification');doc.getElementById('prev').click();
+     if(fullscreenDescriptor)Object.defineProperty(doc,'fullscreenElement',fullscreenDescriptor);else delete doc.fullscreenElement;
+     doc.dispatchEvent(new win.Event('fullscreenchange'));
+     frame.width=width;frame.height=height;await ready(win);
     check(win.getComputedStyle(stage).width===`${width}px`,'Rotating back restores portrait reading layout');
     frame.remove();
    }
    for(const [width,height] of [[667,375],[844,390],[932,430]]){
     const frame=await load(width,height),win=frame.contentWindow,doc=frame.contentDocument,controls=doc.getElementById('controls'),counter=doc.getElementById('slide-count');
     check(controls.hidden,'Landscape starts with controls hidden');
+    check(win.getComputedStyle(doc.getElementById('portrait-hint')).display==='none','Landscape hides the orientation hint');
     const before=doc.getElementById('stage').getBoundingClientRect();
     counter.click();const after=doc.getElementById('stage').getBoundingClientRect();
     check(!controls.hidden&&Math.abs(before.width-after.width)<1&&Math.abs(before.height-after.height)<1,'Revealing landscape controls does not shrink the slide');
@@ -172,6 +207,7 @@ document.getElementById('run').onclick=async()=>{
   for(const width of [1440,1920]){
    const frame=await load(width,width===1440?900:1080),win=frame.contentWindow,doc=frame.contentDocument;
    check(win.getComputedStyle(doc.getElementById('stage')).width==='1600px',`${width}px: desktop canvas preserved`);
+   check(win.getComputedStyle(doc.getElementById('portrait-hint')).display==='none',`${width}px: desktop hides the orientation hint`);
    doc.body.dispatchEvent(new win.KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}));
    check(win.location.hash==='#2',`${width}px: desktop keyboard navigation preserved`);
    frame.remove();
