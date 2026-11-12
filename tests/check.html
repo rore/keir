@@ -16,7 +16,7 @@
  <a href="?review=320">320px</a> · <a href="?review=390">390px</a> ·
  <a href="?review=430">430px</a> · <a href="?review=844">844px landscape</a> ·
  <a href="?review=932">932px landscape</a> · <a href="?review=1440">Desktop</a>.
- Phone review panels expand to show all content. Controls are hidden only in these review panels.
+ Portrait review panels expand to show all content. Landscape panels show the fitted slide.
 </p>
 <button id="run">Run checks</button>
 <pre id="results" role="status">Ready.</pre>
@@ -37,8 +37,8 @@ document.getElementById('run').onclick=async()=>{
  const failures=[];let checks=0;
  const check=(ok,message)=>{checks++;if(!ok)failures.push(message)};
  try{
-  for(const width of [320,390,430,844,932]){
-   const height=width>=844?390:844,frame=await load(width,height);
+   for(const width of [320,390,430]){
+    const height=844,frame=await load(width,height);
    const win=frame.contentWindow,doc=frame.contentDocument;
    for(let slide=1;slide<=13;slide++){
     if(slide>1)doc.getElementById('next').click();
@@ -97,9 +97,37 @@ document.getElementById('run').onclick=async()=>{
    pre.scrollLeft=pre.scrollWidth;
    check(pre.scrollWidth<=pre.clientWidth||pre.scrollLeft>0,'Long code lines can scroll sideways');
    pre.focus();pre.dispatchEvent(new win.KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true,cancelable:true}));
-   check(win.location.hash==='#10','Code arrow keys do not change slides');
-   frame.remove();
-  }
+    check(win.location.hash==='#10','Code arrow keys do not change slides');
+    doc.querySelector('.slide.active').scrollTop=200;
+    frame.width=844;frame.height=390;await ready(win);
+    const rotatedStage=stage.getBoundingClientRect(),rotatedPanel=doc.querySelector('.slide.active');
+    check(win.location.hash==='#10','Rotation keeps the current slide');
+    check(rotatedPanel.scrollTop===0,'Rotation clears the portrait scroll offset');
+    check(rotatedStage.left>=-1&&rotatedStage.right<=844+1&&rotatedStage.top>=-1&&rotatedStage.bottom<=doc.getElementById('controls').getBoundingClientRect().top,'Rotated slide fits above navigation');
+    check(rotatedPanel.scrollHeight<=rotatedPanel.clientHeight+1,'Rotated slide needs no vertical scrolling');
+    frame.width=width;frame.height=height;await ready(win);
+    check(win.getComputedStyle(stage).width===`${width}px`,'Rotating back restores portrait reading layout');
+    frame.remove();
+   }
+   for(const [width,height] of [[667,375],[844,390],[932,430]]){
+    const frame=await load(width,height),win=frame.contentWindow,doc=frame.contentDocument;
+    for(let slide=1;slide<=13;slide++){
+     if(slide>1)doc.getElementById('next').click();await ready(win);
+     const stage=doc.getElementById('stage').getBoundingClientRect(),panel=doc.querySelector('.slide.active'),controls=doc.getElementById('controls').getBoundingClientRect();
+     check(win.location.hash===`#${slide}`,`${width}px landscape: slide ${slide} navigation`);
+     check(stage.left>=-1&&stage.right<=width+1&&stage.top>=-1&&stage.bottom<=height+1,`${width}px landscape: slide ${slide} fits viewport`);
+     check(stage.bottom<=controls.top,`${width}px landscape: slide ${slide} avoids navigation`);
+     check(panel.scrollHeight<=panel.clientHeight+1&&panel.scrollWidth<=panel.clientWidth+1&&panel.scrollTop===0,`${width}px landscape: slide ${slide} needs no scrolling`);
+    }
+    for(const button of doc.querySelectorAll('#controls button')){
+     if(button.hidden)continue;const r=button.getBoundingClientRect();
+     check(r.width>=44&&r.height>=44&&r.left>=0&&r.right<=width&&r.bottom<=height,`${width}px landscape: navigation tap target`);
+    }
+    doc.body.dispatchEvent(new win.KeyboardEvent('keydown',{key:'Home',bubbles:true}));
+    doc.body.dispatchEvent(new win.KeyboardEvent('keydown',{key:'PageDown',bubbles:true}));
+    check(win.location.hash==='#2',`${width}px landscape: PageDown navigates rather than scrolling`);
+    frame.remove();
+   }
   for(const width of [1440,1920]){
    const frame=await load(width,width===1440?900:1080),win=frame.contentWindow,doc=frame.contentDocument;
    check(win.getComputedStyle(doc.getElementById('stage')).width==='1600px',`${width}px: desktop canvas preserved`);
@@ -119,8 +147,8 @@ if(width){
  (async()=>{for(let slide=start;slide<=end;slide++){
   const card=document.createElement('section'),heading=document.createElement('h2');
   heading.textContent=`${width}px · slide ${slide}`;frames.append(card);card.append(heading);
-  const frame=await load(width,width>=844&&width<=960?390:844,slide,card);
-  if(width<=960){
+   const frame=await load(width,width>=667&&width<=960?390:844,slide,card);
+   if(width<=960&&frame.contentWindow.matchMedia('(orientation:portrait)').matches){
    const style=frame.contentDocument.createElement('style');style.textContent='.slide{scrollbar-gutter:stable}#controls{display:none}';frame.contentDocument.head.append(style);
    frame.height=frame.contentDocument.querySelector('.slide.active').scrollHeight;
    await ready(frame.contentWindow);

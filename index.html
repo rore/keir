@@ -269,8 +269,8 @@ h1,h2,h3,p,blockquote{margin:0}
 .ov.current,.ov:hover,.ov:focus-visible{border-color:var(--lime);outline:none}
 #live{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
 @media (prefers-reduced-motion:reduce){#controls{transition:none}}
-/* Phones use the same slides as scrollable reading panels, not scaled canvases. */
-@media screen and (max-width:960px){
+/* Portrait phones read vertically; landscape phones use the fitted slide canvas. */
+@media screen and (max-width:960px) and (orientation:portrait){
  #stage{position:fixed;inset:0;width:100%;height:100%;height:100dvh;transform:none!important}
  .slide{padding:28px 22px calc(110px + env(safe-area-inset-bottom));padding-left:max(22px,env(safe-area-inset-left));padding-right:max(22px,env(safe-area-inset-right));padding-top:max(28px,env(safe-area-inset-top));overflow-y:auto;overscroll-behavior-y:contain;overflow-wrap:anywhere;-webkit-text-size-adjust:100%;text-size-adjust:100%}
  .slide *{min-width:0}
@@ -394,6 +394,8 @@ h1,h2,h3,p,blockquote{margin:0}
  .fin-ask strong{font-size:26px;line-height:1.25}
  .fin-ask p{font-size:18px;line-height:1.5}
  .fin-note{display:inline-block;margin-top:36px;font-size:17px;line-height:1.5;padding:12px 0;text-underline-offset:5px}
+}
+@media screen and (max-width:960px){
  #controls{bottom:max(12px,env(safe-area-inset-bottom));width:max-content;gap:6px;padding:6px;opacity:1;background:#111B1FF2;max-width:calc(100% - 24px)}
  #controls button{width:48px;height:48px;flex-shrink:0;font-size:28px;touch-action:manipulation}
  #controls svg{width:20px;height:20px}
@@ -731,9 +733,9 @@ h1,h2,h3,p,blockquote{margin:0}
 (()=>{
  const stage=document.getElementById('stage'),slides=[...document.querySelectorAll('.slide')],total=slides.length;
  const prev=document.getElementById('prev'),next=document.getElementById('next'),ov=document.getElementById('overview'),grid=document.getElementById('ov-grid');
- const phone=matchMedia('(max-width:960px)'),controls=document.getElementById('controls');
+ const phone=matchMedia('(max-width:960px)'),reading=matchMedia('(max-width:960px) and (orientation:portrait)'),controls=document.getElementById('controls');
  let cur=0,returnFocus=null;
- function fit(){if(phone.matches){stage.style.transform='';stage.style.left='';stage.style.top='';return}const vv=window.visualViewport,w=vv?vv.width:innerWidth,h=(vv?vv.height:innerHeight)-56,s=Math.min(w/1600,h/900);stage.style.transform=`scale(${s})`;stage.style.left=`${(w-1600*s)/2}px`;stage.style.top=`${Math.max(0,(h-900*s)/2)}px`}
+ function fit(){if(reading.matches){stage.style.transform='';stage.style.left='';stage.style.top='';return}slides[cur].scrollTop=0;const vv=window.visualViewport,w=vv?vv.width:innerWidth,h=(vv?vv.height:innerHeight)-(phone.matches?controls.offsetHeight+parseFloat(getComputedStyle(controls).bottom)+12:56),s=Math.min(w/1600,h/900);stage.style.transform=`scale(${s})`;stage.style.left=`${(w-1600*s)/2}px`;stage.style.top=`${Math.max(0,(h-900*s)/2)}px`}
  function show(i){const before=cur;cur=Math.max(0,Math.min(total-1,i));slides.forEach((s,j)=>{s.classList.toggle('active',j===cur);s.setAttribute('aria-hidden',String(j!==cur));s.inert=j!==cur});if(before!==cur)slides[cur].scrollTop=0;prev.disabled=cur===0;next.disabled=cur===total-1;document.getElementById('count').textContent=`${cur+1} / ${total}`;[...grid.children].forEach((b,j)=>b.classList.toggle('current',j===cur));document.getElementById('live').textContent=`Slide ${cur+1} of ${total}: ${slides[cur].dataset.title}`;history.replaceState(null,'',`#${cur+1}`)}
  function toggleOv(force){const open=typeof force==='boolean'?force:!ov.classList.contains('open');if(open)returnFocus=document.activeElement;ov.classList.toggle('open',open);ov.setAttribute('aria-hidden',String(!open));stage.inert=open;controls.inert=open;if(open){grid.children[cur]?.focus()}else{(returnFocus?.isConnected&&returnFocus.tabIndex>=0&&!returnFocus.disabled&&!returnFocus.closest('[inert]')?returnFocus:document.getElementById('ov-btn')).focus({preventScroll:true})}}
  function fs(){(document.fullscreenElement?document.exitFullscreen?.():document.documentElement.requestFullscreen?.())?.catch?.(()=>{})}
@@ -749,14 +751,14 @@ h1,h2,h3,p,blockquote{margin:0}
   if(open){if(k==='Tab'){const items=[document.getElementById('ov-close'),...grid.children],first=items[0],last=items[items.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}}return}
   if(k===' '&&e.target.closest('button,a'))return;
   if(e.target.closest('pre')&&['ArrowRight','ArrowLeft','Home','End'].includes(k))return;
-  if(phone.matches&&['ArrowDown','ArrowUp','PageDown','PageUp',' '].includes(k)){e.preventDefault();const direction=k==='ArrowUp'||k==='PageUp'||(k===' '&&e.shiftKey)?-1:1;slides[cur].scrollBy(0,direction*(k.startsWith('Arrow')?48:slides[cur].clientHeight*.8));return}
+  if(reading.matches&&['ArrowDown','ArrowUp','PageDown','PageUp',' '].includes(k)){e.preventDefault();const direction=k==='ArrowUp'||k==='PageUp'||(k===' '&&e.shiftKey)?-1:1;slides[cur].scrollBy(0,direction*(k.startsWith('Arrow')?48:slides[cur].clientHeight*.8));return}
   if(['ArrowRight','ArrowDown','PageDown',' '].includes(k)){e.preventDefault();show(cur+1)}
   else if(['ArrowLeft','ArrowUp','PageUp'].includes(k)){e.preventDefault();show(cur-1)}
   else if(k==='Home'){e.preventDefault();show(0)}else if(k==='End'){e.preventDefault();show(total-1)}});
  // Phone gestures belong to reading and code scrolling; use the large navigation buttons.
  let tx=null;stage.addEventListener('touchstart',e=>{if(!phone.matches)tx=e.changedTouches[0].screenX},{passive:true});stage.addEventListener('touchend',e=>{if(tx===null)return;const d=e.changedTouches[0].screenX-tx;if(!phone.matches&&Math.abs(d)>60)show(cur+(d<0?1:-1));tx=null},{passive:true});
  stage.addEventListener('touchcancel',()=>{tx=null},{passive:true});
- addEventListener('resize',fit);document.addEventListener('fullscreenchange',fit);window.visualViewport?.addEventListener('resize',fit);
+ addEventListener('resize',fit);reading.addEventListener('change',fit);document.addEventListener('fullscreenchange',fit);window.visualViewport?.addEventListener('resize',fit);
  fit();show((parseInt(location.hash.slice(1),10)||1)-1);
 })();
 </script>
